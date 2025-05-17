@@ -38,7 +38,7 @@ export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange }: 
 
   const handleNewChat = () => {
     setSheetOpen(false);
-    router.push('/chat/new');
+    router.push('/chat');
   };
 
   return (

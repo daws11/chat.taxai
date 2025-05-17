@@ -90,24 +90,29 @@ export default function ChatPage() {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-        {error && (
-          <div className="mb-4 p-4 text-sm text-red-500 bg-red-50 rounded-md">
-            {error}
-          </div>
-        )}
-        {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            Start a conversation with TaxAI
-          </div>
-        ) : (
-          messages.map((message, index) => (
-            <ChatMessage key={index} {...message} />
-          ))
-        )}
-      </ScrollArea>
-      <ChatInput onSubmit={handleSubmit} isLoading={isLoading} className="border-t" sessionId={sessionId} />
+    <div className="flex flex-col h-screen min-h-screen w-full max-w-full">
+      <div className="flex-1 min-h-0 flex flex-col">
+        <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0 p-4 overflow-y-auto">
+          {error && (
+            <div className="mb-4 p-4 text-sm text-red-500 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+          {messages.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              Start a conversation with TaxAI
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <ChatMessage key={index} {...message}
+               />
+            ))
+          )}
+        </ScrollArea>
+        <div className="border-t bg-background">
+          <ChatInput onSubmit={handleSubmit} isLoading={isLoading} sessionId={sessionId} />
+        </div>
+      </div>
     </div>
   );
 }
