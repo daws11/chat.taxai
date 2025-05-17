@@ -111,6 +111,149 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/*
+  UI overhaul for ChatGPT-like experience:
+  - Sidebar: dark, glassy, highlight active chat, modern button
+  - Chat bubble: rounded, shadow, color distinction, markdown support
+  - Input: sticky, modern, shadow, focus ring
+  - Animations: smooth transitions
+  - Font: Inter/Geist, large readable
+  - Loader: animated dots
+*/
+
+body {
+  font-family: var(--font-geist-sans, Inter, sans-serif);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Sidebar */
+.bg-sidebar, .sidebar {
+  background: linear-gradient(135deg, #23272f 80%, #343541 100%);
+  color: var(--sidebar-foreground);
+}
+.sidebar .active {
+  background: #343541;
+  color: #fff;
+}
+.sidebar .chat-link {
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  transition: background 0.2s;
+}
+.sidebar .chat-link:hover {
+  background: #444654;
+}
+
+/* Chat bubbles */
+.chat-bubble {
+  border-radius: 1.25rem;
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 0.5rem;
+  max-width: 80%;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+  font-size: 1.08rem;
+  line-height: 1.7;
+  word-break: break-word;
+  transition: background 0.2s;
+}
+.chat-bubble.user {
+  background: #343541;
+  color: #fff;
+  margin-left: auto;
+}
+.chat-bubble.assistant {
+  background: #444654;
+  color: #d1d5db;
+  margin-right: auto;
+}
+
+/* Input area */
+.chat-input {
+  position: sticky;
+  bottom: 0;
+  background: #23272f;
+  border-top: 1px solid #343541;
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  z-index: 10;
+  box-shadow: 0 -2px 8px 0 rgba(0,0,0,0.04);
+}
+.chat-input textarea {
+  background: #343541;
+  color: #fff;
+  border-radius: 0.75rem;
+  border: none;
+  padding: 1rem;
+  font-size: 1.08rem;
+  resize: none;
+  outline: none;
+  box-shadow: none;
+  transition: box-shadow 0.2s;
+}
+.chat-input textarea:focus {
+  box-shadow: 0 0 0 2px #10a37f;
+}
+.chat-input button {
+  background: #10a37f;
+  color: #fff;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: background 0.2s;
+}
+.chat-input button:hover {
+  background: #13c08b;
+}
+
+/* Loader dots */
+.loader-dots {
+  display: inline-block;
+  width: 2rem;
+  text-align: left;
+}
+.loader-dots span {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.2rem;
+  background: #10a37f;
+  border-radius: 50%;
+  animation: loader-bounce 1.4s infinite both;
+}
+.loader-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.loader-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes loader-bounce {
+  0%, 80%, 100% { transform: scale(0.7); }
+  40% { transform: scale(1.2); }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  background: #23272f;
+}
+::-webkit-scrollbar-thumb {
+  background: #343541;
+  border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .chat-bubble {
+    font-size: 1rem;
+    padding: 0.8rem 1rem;
+  }
+  .chat-input button {
+    padding: 0.6rem 1.1rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

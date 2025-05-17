@@ -44,16 +44,16 @@ export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange }: 
   return (
     <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="lg:hidden">
+        <Button variant="outline" className="lg:hidden bg-sidebar text-sidebar-foreground">
           Menu
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-80 p-0 bg-sidebar text-sidebar-foreground sidebar">
         <SheetHeader className="p-4">
           <SheetTitle>Your Chats</SheetTitle>
         </SheetHeader>
         <div className="flex flex-col h-full">
-          <Button onClick={handleNewChat} className="mx-4 mb-4">
+          <Button onClick={handleNewChat} className="mx-4 mb-4 bg-primary text-primary-foreground">
             New Chat
           </Button>
           <ScrollArea className="flex-1">
@@ -63,12 +63,9 @@ export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange }: 
                   key={session._id}
                   href={`/chat/${session._id}`}
                   onClick={() => setSheetOpen(false)}
+                  className={`chat-link${session._id === currentSessionId ? ' active' : ''}`}
                 >
-                  <div
-                    className={`p-3 rounded-lg hover:bg-muted transition-colors ${
-                      session._id === currentSessionId ? 'bg-muted' : ''
-                    }`}
-                  >
+                  <div>
                     <div className="font-medium truncate">{session.title}</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(session.updatedAt).toLocaleDateString()}

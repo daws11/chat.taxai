@@ -41,7 +41,7 @@ export function ChatInput({ onSubmit, isLoading, className, sessionId }: ChatInp
   };
 
   return (
-    <div className={cn('flex items-end gap-4 p-4', className)}>
+    <div className={cn('chat-input', className)}>
       <Textarea
         ref={textareaRef}
         placeholder="Type your message..."
@@ -55,7 +55,7 @@ export function ChatInput({ onSubmit, isLoading, className, sessionId }: ChatInp
         className="mb-[3px]"
       >
         {isLoading ? (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white" />
+          <span className="loader-dots"><span></span><span></span><span></span></span>
         ) : (
           'Send'
         )}
