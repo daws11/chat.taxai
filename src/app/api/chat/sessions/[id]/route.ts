@@ -5,7 +5,7 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       );
     }
 
-    if (!mongoose.isValidObjectId(context.params.id)) {
+    if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json(
         { error: 'Invalid session ID' },
         { status: 400 }
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
     await connectToDatabase();
 
     const chatSession = await ChatSession.findOne({
-      _id: context.params.id,
+      _id: params.id,
       userId: session.user.id,
     });
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
   }
 }
 
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -61,7 +61,7 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
       );
     }
 
-    if (!mongoose.isValidObjectId(context.params.id)) {
+    if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json(
         { error: 'Invalid session ID' },
         { status: 400 }
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
     await connectToDatabase();
 
     const chatSession = await ChatSession.findOneAndDelete({
-      _id: context.params.id,
+      _id: params.id,
       userId: session.user.id,
     });
 
@@ -95,7 +95,7 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, context: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -105,7 +105,7 @@ export async function PATCH(req: NextRequest, context: { params: { id: string } 
       );
     }
 
-    if (!mongoose.isValidObjectId(context.params.id)) {
+    if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json(
         { error: 'Invalid session ID' },
         { status: 400 }
@@ -126,7 +126,7 @@ export async function PATCH(req: NextRequest, context: { params: { id: string } 
 
     const chatSession = await ChatSession.findOneAndUpdate(
       {
-        _id: context.params.id,
+        _id: params.id,
         userId: session.user.id,
       },
       { title },
