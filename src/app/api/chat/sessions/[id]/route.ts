@@ -5,7 +5,8 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: Record<string, string> }) {
+  const { params } = context;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -51,7 +52,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, context: { params: Record<string, string> }) {
+  const { params } = context;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -95,7 +97,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, context: { params: Record<string, string> }) {
+  const { params } = context;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
