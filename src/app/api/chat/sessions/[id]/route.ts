@@ -5,36 +5,31 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
-export async function GET(req: NextRequest, context: { params: Record<string, string> }) {
-  const { params } = context;
+
+export async function GET(
+  req: NextRequest, 
+  context: { params: { id: string } } 
+) {
+  const { id } = context.params; 
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!mongoose.isValidObjectId(params.id)) {
-      return NextResponse.json(
-        { error: 'Invalid session ID' },
-        { status: 400 }
-      );
+    if (!mongoose.isValidObjectId(id)) {
+      return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
 
     await connectToDatabase();
 
     const chatSession = await ChatSession.findOne({
-      _id: params.id,
+      _id: id,
       userId: session.user.id,
     });
 
     if (!chatSession) {
-      return NextResponse.json(
-        { error: 'Chat session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -45,43 +40,35 @@ export async function GET(req: NextRequest, context: { params: Record<string, st
     });
   } catch (error) {
     console.error('Chat session API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest, context: { params: Record<string, string> }) {
-  const { params } = context;
+// Perbaikan tipe yang sama untuk DELETE
+export async function DELETE(
+  req: NextRequest, 
+  context: { params: { id: string } }
+) {
+  const { id } = context.params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!mongoose.isValidObjectId(params.id)) {
-      return NextResponse.json(
-        { error: 'Invalid session ID' },
-        { status: 400 }
-      );
+    if (!mongoose.isValidObjectId(id)) {
+      return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
 
     await connectToDatabase();
 
     const chatSession = await ChatSession.findOneAndDelete({
-      _id: params.id,
+      _id: id,
       userId: session.user.id,
     });
 
     if (!chatSession) {
-      return NextResponse.json(
-        { error: 'Chat session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
 
     return NextResponse.json(
@@ -90,46 +77,38 @@ export async function DELETE(req: NextRequest, context: { params: Record<string,
     );
   } catch (error) {
     console.error('Chat session API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function PATCH(req: NextRequest, context: { params: Record<string, string> }) {
-  const { params } = context;
+// Perbaikan tipe yang sama untuk PATCH
+export async function PATCH(
+  req: NextRequest, 
+  context: { params: { id: string } }
+) {
+  const { id } = context.params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!mongoose.isValidObjectId(params.id)) {
-      return NextResponse.json(
-        { error: 'Invalid session ID' },
-        { status: 400 }
-      );
+    if (!mongoose.isValidObjectId(id)) {
+      return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
 
     const body = await req.json();
     const { title } = body;
 
     if (!title || typeof title !== 'string') {
-      return NextResponse.json(
-        { error: 'Title is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
     await connectToDatabase();
 
     const chatSession = await ChatSession.findOneAndUpdate(
       {
-        _id: params.id,
+        _id: id,
         userId: session.user.id,
       },
       { title },
@@ -137,10 +116,7 @@ export async function PATCH(req: NextRequest, context: { params: Record<string, 
     );
 
     if (!chatSession) {
-      return NextResponse.json(
-        { error: 'Chat session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -150,9 +126,6 @@ export async function PATCH(req: NextRequest, context: { params: Record<string, 
     });
   } catch (error) {
     console.error('Chat session API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
