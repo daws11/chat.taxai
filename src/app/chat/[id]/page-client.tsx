@@ -1,15 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ChatMessage } from "@/components/chat-message";
 import { ChatInput } from "@/components/chat-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatMessageType } from "types/chat";
 
 export default function ChatSessionPageClient() {
-  const { status } = useSession({ required: true });
-  const router = useRouter();
   const params = useParams();
   const sessionId = typeof params?.id === "string" ? params.id : undefined;
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -90,7 +87,15 @@ export default function ChatSessionPageClient() {
               Start a conversation with TaxAI
             </div>
           ) : (
-            messages.map((message, index) => <ChatMessage key={index} {...message} />)
+            messages.map((message, index) => (
+              <ChatMessage
+                key={index}
+                {...message}
+                timestamp={
+                  typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp
+                }
+              />
+            ))
           )}
         </ScrollArea>
         <div className="border-t bg-background">
@@ -100,3 +105,11 @@ export default function ChatSessionPageClient() {
     </div>
   );
 }
+
+// Tidak ada error pada kode ini jika ChatMessageType di types/chat.ts sudah:
+// export type ChatMessageType = {
+//   role: 'user' | 'assistant';
+//   content: string;
+//   timestamp?: Date | string;
+// };
+// Jika belum, pastikan untuk mengedit types/chat.ts seperti di atas.
