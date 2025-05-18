@@ -5,12 +5,17 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
+type RouteContext = {
+  params: {
+    id: string;
+  };
+};
 
 export async function GET(
-  req: NextRequest, 
-  context: { params: { id: string } } 
+  req: NextRequest,
+  { params }: RouteContext
 ) {
-  const { id } = context.params; 
+  const { id } = params; 
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -46,10 +51,10 @@ export async function GET(
 
 // Perbaikan tipe yang sama untuk DELETE
 export async function DELETE(
-  req: NextRequest, 
-  context: { params: { id: string } }
+  req: NextRequest,
+  { params }: RouteContext
 ) {
-  const { id } = context.params;
+  const { id } = params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -83,10 +88,10 @@ export async function DELETE(
 
 // Perbaikan tipe yang sama untuk PATCH
 export async function PATCH(
-  req: NextRequest, 
-  context: { params: { id: string } }
+  req: NextRequest,
+  { params }: RouteContext
 ) {
-  const { id } = context.params;
+  const { id } = params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
