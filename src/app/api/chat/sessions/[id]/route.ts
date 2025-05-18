@@ -5,38 +5,28 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
-
+// Handler GET
 export async function GET(
   req: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { id: string } }
 ) {
-  const { id } = params; 
+  const { id } = params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     if (!mongoose.isValidObjectId(id)) {
       return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
-
     await connectToDatabase();
-
     const chatSession = await ChatSession.findOne({
       _id: id,
       userId: session.user.id,
     });
-
     if (!chatSession) {
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
-
     return NextResponse.json({
       id: chatSession._id,
       title: chatSession.title,
@@ -49,10 +39,10 @@ export async function GET(
   }
 }
 
-// Perbaikan tipe yang sama untuk DELETE
+// Handler DELETE
 export async function DELETE(
   req: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const { id } = params;
   try {
@@ -60,22 +50,17 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     if (!mongoose.isValidObjectId(id)) {
       return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
-
     await connectToDatabase();
-
     const chatSession = await ChatSession.findOneAndDelete({
       _id: id,
       userId: session.user.id,
     });
-
     if (!chatSession) {
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
-
     return NextResponse.json(
       { message: 'Chat session deleted successfully' },
       { status: 200 }
@@ -86,10 +71,10 @@ export async function DELETE(
   }
 }
 
-// Perbaikan tipe yang sama untuk PATCH
+// Handler PATCH
 export async function PATCH(
   req: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const { id } = params;
   try {
@@ -97,20 +82,15 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     if (!mongoose.isValidObjectId(id)) {
       return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
-
     const body = await req.json();
     const { title } = body;
-
     if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
-
     await connectToDatabase();
-
     const chatSession = await ChatSession.findOneAndUpdate(
       {
         _id: id,
@@ -119,11 +99,9 @@ export async function PATCH(
       { title },
       { new: true }
     );
-
     if (!chatSession) {
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
     }
-
     return NextResponse.json({
       id: chatSession._id,
       title: chatSession.title,
