@@ -8,9 +8,10 @@ import mongoose from 'mongoose';
 // Handler GET
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
 ) {
-  const { id } = params;
+  const { id } = context.params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -42,9 +43,10 @@ export async function GET(
 // Handler DELETE
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
 ) {
-  const { id } = params;
+  const { id } = context.params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -74,9 +76,10 @@ export async function DELETE(
 // Handler PATCH
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
 ) {
-  const { id } = params;
+  const { id } = context.params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
