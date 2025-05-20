@@ -153,7 +153,9 @@ export default function ChatSessionPageClient() {
                 key={index}
                 {...message}
                 timestamp={
-                  typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp
+                  message.timestamp 
+                    ? new Date(message.timestamp) 
+                    : new Date()
                 }
               />
             ))

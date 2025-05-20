@@ -3,9 +3,11 @@ import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import type { ThreadMessage } from '@/lib/services/assistant-service';
 
-interface ChatMessageProps extends ThreadMessage {}
+interface ChatMessageProps extends Omit<ThreadMessage, 'timestamp'> {
+  timestamp?: Date;
+}
 
-export function ChatMessage({ role, content }: ChatMessageProps) {
+export function ChatMessage({ role, content, timestamp }: ChatMessageProps) {
   const isTyping = role === 'assistant' && !content;
   
   return (

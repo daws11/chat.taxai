@@ -63,7 +63,6 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
-  const [inputValue, setInputValue] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { status } = useSession({
@@ -78,18 +77,21 @@ export default function ChatPage() {
 
   // Debounce fetch session
   const debouncedFetch = useCallback(
-    debounce(async (id: string) => {
-      try {
-        const response = await fetch(`/api/chat/sessions/${id}`);
-        if (!response.ok) throw new Error('Failed to fetch session');
-        const data = await response.json();
-        setCurrentSession(data);
-        setMessages(data.messages || []);
-      } catch (error) {
-        console.error('Error fetching session:', error);
-        setError('Failed to load chat session');
-      }
-    }, 500),
+    (id: string) => {
+      const fetchData = async () => {
+        try {
+          const response = await fetch(`/api/chat/sessions/${id}`);
+          if (!response.ok) throw new Error('Failed to fetch session');
+          const data = await response.json();
+          setCurrentSession(data);
+          setMessages(data.messages || []);
+        } catch (error) {
+          console.error('Error fetching session:', error);
+          setError('Failed to load chat session');
+        }
+      };
+      return debounce(fetchData, 500);
+    },
     []
   );
 
@@ -188,14 +190,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleSuggestionClick = async (suggestion: string) => {
-    try {
-      await createNewSessionWithMessage(suggestion);
-    } catch (error) {
-      // Error sudah di-handle di createNewSessionWithMessage
-      console.error('Error handling suggestion click:', error);
-    }
-  };
+
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || !currentSession) return;
@@ -279,7 +274,7 @@ export default function ChatPage() {
     return (
       <div className="flex flex-col min-h-screen justify-between items-center bg-background">
         <div className="flex-1 flex flex-col justify-center items-center w-full">
-          <h1 className="text-2xl font-bold mb-2 mt-12 text-center">Hi I'm Atto, Your TaxAI Assistant!</h1>
+          <h1 className="text-2xl font-bold mb-2 mt-12 text-center">Hi I&apos;m Atto, Your TaxAI Assistant!</h1>
           <p className="mb-6 text-center text-muted-foreground">Ask anything about taxes, or try one of these topics:</p>
           <div className="flex flex-wrap justify-center gap-3 mb-8">
             {SUGGESTIONS.map((suggestion, idx) => (
