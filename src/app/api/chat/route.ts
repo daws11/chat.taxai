@@ -1,8 +1,10 @@
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authConfig } from '@/lib/auth/auth-options';
 import { connectToDatabase } from '@/lib/db';
 import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
+import { OpenAI } from 'openai';
+import { assistantService } from '@/lib/services/assistant-service';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -31,7 +33,8 @@ export async function POST(req: NextRequest) {
 
     // Create or update chat session
     let chatSession;
-    let thread_id = threadId;
+    // Use the threadId from request or initialize as null
+    let currentThreadId = threadId || null;
     
     if (sessionId) {
       chatSession = await ChatSession.findById(sessionId);
@@ -40,18 +43,21 @@ export async function POST(req: NextRequest) {
       }
       
       // If this is a new thread for an existing session
-      if (!thread_id) {
-        thread_id = await assistantService.createThread();
-        chatSession.threadId = thread_id;
+      if (!currentThreadId) {
+        currentThreadId = await assistantService.createThread();
+        chatSession.threadId = currentThreadId;
         await chatSession.save();
+      } else {
+        // Use the threadId from the chat session if available
+        currentThreadId = chatSession.threadId || currentThreadId;
       }
     } else {
       // Create a new thread for a new session
-      thread_id = await assistantService.createThread();
+      currentThreadId = await assistantService.createThread();
       
       chatSession = new ChatSession({
         userId: session.user.id,
-        threadId: thread_id,
+        threadId: currentThreadId,
         title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
         messages: [],
       });
@@ -63,35 +69,29 @@ export async function POST(req: NextRequest) {
       content: message,
     });
 
-    // Handle OpenAI Assistants API with thread management
-    let threadId = chatSession.threadId;
-    
-    // Create a new thread if one doesn't exist for this session
-    if (!threadId) {
-      const thread = await openai.beta.threads.create();
-      threadId = thread.id;
-      chatSession.threadId = threadId;
-    }
+    // We already have the thread ID from earlier in the code
+    // Make sure we're using the thread ID from the chat session
+    currentThreadId = chatSession.threadId;
     
     // Add the message to the thread
-    await openai.beta.threads.messages.create(threadId, {
+    await openai.beta.threads.messages.create(currentThreadId, {
       role: 'user',
       content: message
     });
     
     // Run the assistant on the thread
-    const run = await openai.beta.threads.runs.create(threadId, {
+    const run = await openai.beta.threads.runs.create(currentThreadId, {
       assistant_id: ASSISTANT_ID
     });
     
     // Poll for the run completion
-    let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+    let runStatus = await openai.beta.threads.runs.retrieve(currentThreadId, run.id);
     
     // Simple polling mechanism - in production should use a more sophisticated approach
     while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
       // Wait a bit before checking again
       await new Promise(resolve => setTimeout(resolve, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      runStatus = await openai.beta.threads.runs.retrieve(currentThreadId, run.id);
       
       if (runStatus.status === 'failed') {
         throw new Error('Assistant run failed: ' + runStatus.last_error?.message);
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get the assistant's messages
-    const messages = await openai.beta.threads.messages.list(threadId);
+    const messages = await openai.beta.threads.messages.list(currentThreadId);
     
     // Find the latest assistant message
     const assistantMessages = messages.data.filter(msg => msg.role === 'assistant');

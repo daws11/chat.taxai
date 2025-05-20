@@ -7,12 +7,11 @@ import Image from 'next/image';
 import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
 import { Bot, FileText, Calculator, HelpCircle, Lightbulb } from 'lucide-react';
+import { ThreadMessage } from '@/lib/services/assistant-service';
 
-// Update ThreadMessage type to include timestamp
+// Extended version with required fields
 interface ExtendedThreadMessage extends ThreadMessage {
-  timestamp?: Date;
-  role: 'user' | 'assistant';
-  content: string;
+  timestamp: Date;
   threadId: string;
 }
 
@@ -98,7 +97,7 @@ export default function ChatPage() {
   const { status } = useSession({
     required: true,
     onUnauthenticated() {
-      router.push('/(auth)/login');
+      router.push('/login');
     },
   });
   const { data: session } = useSession();
@@ -111,11 +110,10 @@ export default function ChatPage() {
     ? SUGGESTIONS.filter(s => s.category === selectedCategory)
     : SUGGESTIONS;
 
+  // No need to fetch messages on the landing page
   useEffect(() => {
-    if (status === 'authenticated' && sessionId) {
-      debouncedFetch(sessionId);
-    }
-  }, [status, sessionId, debouncedFetch]);
+    // Initial setup if needed
+  }, [status]);
 
   // const fetchSessions = async () => {
   //   try {
@@ -138,12 +136,12 @@ export default function ChatPage() {
       }
       
       // Create optimistic UI update
-      const userMessage: Message = { 
+      const userMessage: ThreadMessage = { 
         role: 'user', 
         content: message, 
         timestamp: new Date() 
       };
-      const assistantMessage: Message = { 
+      const assistantMessage: ThreadMessage = { 
         role: 'assistant', 
         content: '', 
         timestamp: new Date() 

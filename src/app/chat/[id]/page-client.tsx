@@ -5,8 +5,7 @@ import { ChatMessage } from "@/components/chat-message";
 import { ChatInput } from "@/components/chat-input";
 import type { ChatMessageType } from "types/chat";
 
-import { useRouter } from "next/navigation";
-import { FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
+// import { useRouter } from "next/navigation";
 
 export default function ChatSessionPageClient() {
   const params = useParams();
@@ -75,7 +74,7 @@ export default function ChatSessionPageClient() {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, sessionId }),
+          body: JSON.stringify({ message, sessionId, threadId: null }),
           signal: controller.signal
         });
         
