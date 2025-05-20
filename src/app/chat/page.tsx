@@ -8,14 +8,10 @@ import { ChatInput } from '@/components/chat-input';
 import { Bot, FileText, Calculator, HelpCircle, Lightbulb } from 'lucide-react';
 import { ThreadMessage } from '@/lib/services/assistant-service';
 
-type ChatSession = {
-  _id: string;
-  threadId: string;
-  title: string;
-  messages: ThreadMessage[];
-  createdAt: string;
-  updatedAt: string;
-};
+interface ErrorWithName extends Error {
+  name: string;
+  message: string;
+}
 
 const SUGGESTIONS = [
   {
@@ -172,7 +168,8 @@ export default function ChatPage() {
             return newMessages;
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err as ErrorWithName;
         clearTimeout(timeoutId);
         if (err?.name === 'AbortError') {
           throw new Error('Request timed out. Please try again.');
@@ -236,7 +233,7 @@ export default function ChatPage() {
               </h1>
               
               <p className="text-lg text-[#C5C5D2] mb-8 text-center">
-                I'm your AI tax assistant. Ask me anything about taxes or select a topic below.
+                I&apos;m your AI tax assistant. Ask me anything about taxes or select a topic below.
               </p>
               
               {/* Category filters */}

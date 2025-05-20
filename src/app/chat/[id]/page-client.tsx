@@ -107,9 +107,9 @@ export default function ChatSessionPageClient() {
           // Trigger sidebar refresh
           window.dispatchEvent(new Event('chat-session-updated'));
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearTimeout(timeoutId);
-        if (err?.name === 'AbortError') {
+        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
           throw new Error('Request timed out. Please try again.');
         }
         throw err;
