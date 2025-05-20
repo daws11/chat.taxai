@@ -3,32 +3,18 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import Image from 'next/image';
 import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
 import { Bot, FileText, Calculator, HelpCircle, Lightbulb } from 'lucide-react';
 import { ThreadMessage } from '@/lib/services/assistant-service';
 
-// Extended version with required fields
-interface ExtendedThreadMessage extends ThreadMessage {
-  timestamp: Date;
+type ChatSession = {
+  _id: string;
   threadId: string;
-}
-
-// Fallback message type for display
-const FALLBACK_MESSAGE: ExtendedThreadMessage = {
-  role: 'assistant',
-  content: 'Sorry, there was an error processing your request.',
-  timestamp: new Date(),
-  threadId: 'fallback'
-};
-
-// Helper function to safely get current session
-const getCurrentSession = (session: ChatSession | null): ChatSession => {
-  if (!session) {
-    throw new Error('Session is required');
-  }
-  return session;
+  title: string;
+  messages: ThreadMessage[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 const SUGGESTIONS = [
@@ -77,15 +63,6 @@ function getGreeting(nameOrEmail?: string | null) {
   else if (hour >= 18 || hour < 4) greet = 'Good evening';
   return `${greet}${nameOrEmail ? ', ' + nameOrEmail : ''}!`;
 }
-
-type ChatSession = {
-  _id: string;
-  threadId: string;
-  title: string;
-  messages: ThreadMessage[];
-  createdAt: string;
-  updatedAt: string;
-};
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
