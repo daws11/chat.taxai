@@ -8,11 +8,9 @@ import mongoose from 'mongoose';
 // Handler GET
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // Await params sesuai dokumentasi Next.js 15
-  const resolvedParams = await Promise.resolve(params);
-  const id = resolvedParams.id;
+  const { id } = await params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -44,11 +42,9 @@ export async function GET(
 // Handler DELETE
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // Await params sesuai dokumentasi Next.js 15
-  const resolvedParams = await Promise.resolve(params);
-  const id = resolvedParams.id;
+  const { id } = await params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -78,11 +74,9 @@ export async function DELETE(
 // Handler PATCH
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // Await params sesuai dokumentasi Next.js 15
-  const resolvedParams = await Promise.resolve(params);
-  const id = resolvedParams.id;
+  const { id } = await params;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
