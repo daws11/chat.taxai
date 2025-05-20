@@ -7,10 +7,12 @@ import mongoose from 'mongoose';
 
 // Handler GET
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id;
+  // Await params sesuai dokumentasi Next.js 15
+  const resolvedParams = await Promise.resolve(params);
+  const id = resolvedParams.id;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -41,11 +43,12 @@ export async function GET(
 
 // Handler DELETE
 export async function DELETE(
-  req: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = context.params;
+  // Await params sesuai dokumentasi Next.js 15
+  const resolvedParams = await Promise.resolve(params);
+  const id = resolvedParams.id;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -74,11 +77,12 @@ export async function DELETE(
 
 // Handler PATCH
 export async function PATCH(
-  req: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = context.params;
+  // Await params sesuai dokumentasi Next.js 15
+  const resolvedParams = await Promise.resolve(params);
+  const id = resolvedParams.id;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
@@ -87,7 +91,7 @@ export async function PATCH(
     if (!mongoose.isValidObjectId(id)) {
       return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
-    const body = await req.json();
+    const body = await request.json();
     const { title } = body;
     if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
