@@ -9,6 +9,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Specific assistant ID for Tax AI application
+const ASSISTANT_ID = 'asst_kwYCj2zNJdudMzllrpTjSzGf';
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authConfig);
@@ -42,31 +45,68 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Add user message
+    // Add user message to local storage for UI display
     chatSession.messages.push({
       role: 'user',
       content: message,
     });
 
-    // Get AI response
-    type Message = {
-      role: 'user' | 'assistant' | 'system';
-      content: string;
-    };
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: chatSession.messages.map(({ role, content }: Message) => ({
-        role,
-        content,
-      })),
+    // Handle OpenAI Assistants API with thread management
+    let threadId = chatSession.threadId;
+    
+    // Create a new thread if one doesn't exist for this session
+    if (!threadId) {
+      const thread = await openai.beta.threads.create();
+      threadId = thread.id;
+      chatSession.threadId = threadId;
+    }
+    
+    // Add the message to the thread
+    await openai.beta.threads.messages.create(threadId, {
+      role: 'user',
+      content: message
     });
-
-    const aiMessage = completion.choices[0]?.message;
-    if (aiMessage) {
+    
+    // Run the assistant on the thread
+    const run = await openai.beta.threads.runs.create(threadId, {
+      assistant_id: ASSISTANT_ID
+    });
+    
+    // Poll for the run completion
+    let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+    
+    // Simple polling mechanism - in production should use a more sophisticated approach
+    while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
+      // Wait a bit before checking again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      
+      if (runStatus.status === 'failed') {
+        throw new Error('Assistant run failed: ' + runStatus.last_error?.message);
+      }
+    }
+    
+    // Get the assistant's messages
+    const messages = await openai.beta.threads.messages.list(threadId);
+    
+    // Find the latest assistant message
+    const assistantMessages = messages.data.filter(msg => msg.role === 'assistant');
+    const latestMessage = assistantMessages[0];
+    
+    // Extract text from the content (handling potential array structure)
+    let assistantResponse = '';
+    if (latestMessage && latestMessage.content && latestMessage.content.length > 0) {
+      const textContent = latestMessage.content.find(content => content.type === 'text');
+      if (textContent && 'text' in textContent) {
+        assistantResponse = textContent.text.value;
+      }
+    }
+    
+    // Add assistant response to chat session for UI display
+    if (assistantResponse) {
       chatSession.messages.push({
-        role: aiMessage.role,
-        content: aiMessage.content || '',
+        role: 'assistant',
+        content: assistantResponse,
       });
     }
 
@@ -74,12 +114,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       sessionId: chatSession._id,
-      message: aiMessage,
+      message: {
+        role: 'assistant',
+        content: assistantResponse || 'No response from the assistant'
+      },
     });
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(
-      { message: 'Something went wrong' },
+      { message: error instanceof Error ? error.message : 'Something went wrong' },
       { status: 500 }
     );
   }

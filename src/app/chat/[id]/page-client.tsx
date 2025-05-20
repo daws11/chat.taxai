@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { ChatMessage } from "@/components/chat-message";
 import { ChatInput } from "@/components/chat-input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatMessageType } from "types/chat";
 
 export default function ChatSessionPageClient() {
@@ -12,96 +11,190 @@ export default function ChatSessionPageClient() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Fetch messages on mount
+  // Fetch messages on mount with loading state
   useEffect(() => {
     if (!sessionId) return;
+    
+    setIsInitialLoad(true);
+    
     fetch(`/api/chat/sessions/${sessionId}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch session');
+        return res.json();
+      })
       .then((data) => {
         if (data && data.messages) setMessages(data.messages);
+      })
+      .catch(err => {
+        console.error('Error fetching messages:', err);
+        setError('Failed to load messages. Please try refreshing the page.');
+      })
+      .finally(() => {
+        setIsInitialLoad(false);
       });
   }, [sessionId]);
 
   // Scroll to bottom on new message
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
-  const handleSubmit = async (message: string) => {
+  // Memoize handleSubmit to prevent unnecessary renders
+  const handleSubmit = useCallback(async (message: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: message, timestamp: new Date() },
-        { role: "assistant", content: "", timestamp: undefined },
-      ]);
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, sessionId }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to send message");
-      }
-      if (data.message) {
-        setMessages((prev) => {
-          // Replace last assistant bubble with AI response
-          const lastUserIdx = prev.map((m) => m.role).lastIndexOf("user");
-          const newMessages = prev.slice(0, lastUserIdx + 2);
-          newMessages[newMessages.length - 1] = {
-            role: data.message.role,
-            content: data.message.content,
-            timestamp: new Date(),
-          };
-          return newMessages;
+      
+      // Create optimistic UI update
+      const userMessage: ChatMessageType = { 
+        role: 'user', 
+        content: message, 
+        timestamp: new Date() 
+      };
+      const assistantMessage: ChatMessageType = { 
+        role: 'assistant', 
+        content: '', 
+        timestamp: new Date() 
+      };
+      
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      
+      // Send API request with timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, sessionId }),
+          signal: controller.signal
         });
-        // Trigger sidebar refresh
-        window.dispatchEvent(new Event('chat-session-updated'));
+        
+        clearTimeout(timeoutId);
+        
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to send message");
+        }
+        
+        if (data.message) {
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastAssistantIdx = newMessages.findLastIndex(
+              (m, idx, arr) => m.role === 'assistant' && 
+                            (idx === arr.length - 1 || arr[idx + 1]?.role !== 'assistant')
+            );
+            
+            if (lastAssistantIdx !== -1) {
+              newMessages[lastAssistantIdx] = {
+                role: 'assistant',
+                content: data.message.content,
+                timestamp: new Date()
+              };
+            }
+            
+            return newMessages;
+          });
+          
+          // Trigger sidebar refresh
+          window.dispatchEvent(new Event('chat-session-updated'));
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err?.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw err;
       }
-      // TODO: trigger sidebar refresh if needed
     } catch (error) {
+      console.error('Error sending message:', error);
       setError(error instanceof Error ? error.message : "Something went wrong");
-      setMessages((prev) => prev.slice(0, -2));
+      setMessages((prev) => {
+        // Remove the last two messages (user + empty assistant)
+        return prev.length >= 2 ? prev.slice(0, -2) : prev;
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  // Loading skeleton for initial page load
+  const renderLoadingSkeleton = () => (
+    <div className="message-container">
+      {[1, 2, 3].map((n) => (
+        <div key={n} className={`chat-row ${n % 2 === 0 ? 'assistant' : 'user'}`}>
+          <div className="message-container">
+            <div className="flex items-start gap-4">
+              <div className="chat-role-indicator skeleton" style={{opacity: 0.5}}></div>
+              <div className="w-full">
+                <div className="skeleton h-4 w-3/4 mb-2"></div>
+                <div className="skeleton h-4 w-full mb-2"></div>
+                <div className="skeleton h-4 w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-screen min-h-screen w-full max-w-full">
-      <div className="flex-1 min-h-0 flex flex-col">
-        <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0 p-4 overflow-y-auto">
-          {error && (
-            <div className="mb-4 p-4 text-sm text-red-500 bg-red-50 rounded-md">
+    <div className="flex flex-col min-h-screen bg-[#343541]">
+      <div className="flex-1 overflow-y-auto pb-32">
+        {error && (
+          <div className="toast-container">
+            <div className="toast error">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12" y2="16"></line>
+              </svg>
               {error}
             </div>
-          )}
-          {messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-muted-foreground">
-              Start a conversation with TaxAI
+          </div>
+        )}
+        
+        {isInitialLoad ? (
+          renderLoadingSkeleton()
+        ) : messages.length === 0 ? (
+          <div className="h-[80vh] flex items-center justify-center text-[#8E8EA0]">
+            <div className="text-center max-w-md">
+              <h3 className="text-lg font-medium mb-2">Start a conversation with TaxAI</h3>
+              <p className="text-sm">Ask questions about taxes, financial regulations, or get help with tax calculations.</p>
             </div>
-          ) : (
-            messages.map((message, index) => (
-              <ChatMessage
-                key={index}
-                {...message}
-                timestamp={
-                  typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp
-                }
-              />
-            ))
-          )}
-        </ScrollArea>
-        <div className="border-t bg-background">
-          <ChatInput onSubmit={handleSubmit} isLoading={isLoading} sessionId={sessionId} />
-        </div>
+          </div>
+        ) : (
+          <div>
+            {messages.map((message, index) => {
+              const timestamp = message.timestamp 
+                ? (typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp)
+                : undefined;
+                
+              return (
+                <ChatMessage
+                  key={`${message.role}-${index}`}
+                  role={message.role}
+                  content={message.content}
+                  timestamp={timestamp}
+                />
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
+      
+      <ChatInput 
+        onSubmit={handleSubmit} 
+        isLoading={isLoading} 
+        sessionId={sessionId} 
+      />
     </div>
   );
 }

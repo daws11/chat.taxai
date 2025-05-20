@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Bot, FileText, Calculator, HelpCircle, Lightbulb } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,11 +15,42 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  'How to calculate personal income tax?',
-  'What documents are needed for Annual Tax Return?',
-  'How to report SME taxes?',
-  'What are the penalties for late tax payment?',
-  'How to obtain a Tax ID Number?',
+  {
+    id: 'calculate',
+    text: 'How to calculate personal income tax?',
+    icon: <Calculator className="w-5 h-5" />,
+    category: 'Calculations'
+  },
+  {
+    id: 'docs',
+    text: 'What documents are needed for Annual Tax Return?',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'Documentation'
+  },
+  {
+    id: 'sme',
+    text: 'How to report SME taxes?',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'Business'
+  },
+  {
+    id: 'penalties',
+    text: 'What are the penalties for late tax payment?',
+    icon: <HelpCircle className="w-5 h-5" />,
+    category: 'Compliance'
+  },
+  {
+    id: 'taxid',
+    text: 'How to obtain a Tax ID Number?',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'Registration'
+  },
+  {
+    id: 'deductions',
+    text: 'What tax deductions am I eligible for?',
+    icon: <Lightbulb className="w-5 h-5" />,
+    category: 'Savings'
+  },
 ];
 
 function getGreeting(nameOrEmail?: string | null) {
@@ -33,7 +65,8 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { status } = useSession({
     required: true,
@@ -41,9 +74,15 @@ export default function ChatPage() {
       router.push('/(auth)/login');
     },
   });
-  const params = useParams();
-  const sessionId = typeof params?.id === 'string' ? params.id : undefined;
   const { data: session } = useSession();
+  
+  // Get available categories from suggestions
+  const categories = [...new Set(SUGGESTIONS.map(s => s.category))];
+  
+  // Filter suggestions by category
+  const filteredSuggestions = selectedCategory 
+    ? SUGGESTIONS.filter(s => s.category === selectedCategory)
+    : SUGGESTIONS;
 
   useEffect(() => {
     // fetchSessions();
@@ -60,103 +99,202 @@ export default function ChatPage() {
   //     console.error('Error fetching sessions:', error);
   //   }
   // };
-  const handleSubmit = async (message: string) => {
+  // Memoize handleSubmit to prevent unnecessary renders
+  const handleSubmit = useCallback(async (message: string) => {
     try {
       setIsLoading(true);
       setError(null);
       if (status !== 'authenticated') {
         throw new Error('You must be logged in to send messages');
       }
-      // Tambahkan pesan user dan bubble AI kosong
-      setMessages((prev) => [
-        ...prev,
-        { role: 'user', content: message, timestamp: new Date() },
-        { role: 'assistant', content: '', timestamp: undefined },
-      ]);
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, sessionId }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send message');
-      }
-      if (data.message) {
-        setMessages((prev) => {
-          // Ganti bubble AI kosong terakhir dengan balasan AI
-          const lastUserIdx = prev.map((m) => m.role).lastIndexOf('user');
-          const newMessages = prev.slice(0, lastUserIdx + 2); // user + ai kosong
-          newMessages[newMessages.length - 1] = {
-            role: data.message.role,
-            content: data.message.content,
-            timestamp: new Date(),
-          };
-          return newMessages;
+      
+      // Create optimistic UI update
+      const userMessage: Message = { 
+        role: 'user', 
+        content: message, 
+        timestamp: new Date() 
+      };
+      const assistantMessage: Message = { 
+        role: 'assistant', 
+        content: '', 
+        timestamp: new Date() 
+      };
+      
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      
+      // Send API request with timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to send message');
+        }
+        
+        if (data.message) {
+          // Once we get a sessionId back from the first message, redirect to that chat
+          if (data.sessionId && messages.length === 0) {
+            // Wait a moment for the animation to complete before navigating
+            setTimeout(() => {
+              router.push(`/chat/${data.sessionId}`);
+            }, 1000);
+          }
+          
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastAssistantIdx = newMessages.findLastIndex(
+              (m, idx, arr) => m.role === 'assistant' && 
+                            (idx === arr.length - 1 || arr[idx + 1]?.role !== 'assistant')
+            );
+            
+            if (lastAssistantIdx !== -1) {
+              newMessages[lastAssistantIdx] = {
+                role: 'assistant',
+                content: data.message.content,
+                timestamp: new Date()
+              };
+            }
+            
+            return newMessages;
+          });
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err?.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw err;
       }
-      // fetchSessions();
     } catch (error) {
       console.error('Error sending message:', error);
       setError(error instanceof Error ? error.message : 'Something went wrong');
-      setMessages((prev) => prev.slice(0, -2)); // Hapus user dan ai kosong
+      setMessages((prev) => {
+        // Remove the last two messages (user + empty assistant)
+        return prev.length >= 2 ? prev.slice(0, -2) : prev;
+      });
     } finally {
       setIsLoading(false);
     }
-  };
-
+  }, [messages.length, router, status]);
+  
+  // Scroll to bottom on new message
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+  
+  // Handle category selection
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(prevCategory => 
+      prevCategory === category ? null : category
+    );
+  };
 
   return (
-    <div className="flex flex-col h-screen min-h-screen w-full max-w-full">
-      <div className="flex-1 min-h-0 flex flex-col">
-        <ScrollArea
-          ref={scrollAreaRef}
-          className="flex-1 min-h-0 p-4 overflow-y-auto"
-        >
-          {error && (
-            <div className="mb-4 p-4 text-sm text-red-500 bg-red-50 rounded-md">
+    <div className="flex flex-col min-h-screen bg-[#343541]">
+      <div className="flex-1 overflow-y-auto pb-32">
+        {error && (
+          <div className="toast-container">
+            <div className="toast error">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12" y2="16"></line>
+              </svg>
               {error}
             </div>
-          )}
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-6">
-              <div className="text-2xl font-semibold text-center text-primary-foreground">
-                {getGreeting(session?.user?.name || session?.user?.email)}
-              </div>
-                <div className="text-base text-center text-muted-foreground mb-2">
-                How can TaxAI help you today?
+          </div>
+        )}
+        
+        {messages.length === 0 ? (
+          <div className="landing-container min-h-[calc(100vh-140px)] flex flex-col items-center justify-center p-6 text-[#ECECF1]">
+            <div className="max-w-3xl w-full mx-auto flex flex-col items-center">
+              {/* Logo and welcome */}
+              <div className="flex items-center justify-center mb-6">
+                <div className="bg-[#10A37F] w-12 h-12 rounded-full flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-white" />
                 </div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {SUGGESTIONS.map((s, i) => (
+              </div>
+              
+              <h1 className="text-3xl font-bold mb-2 text-center">
+                {getGreeting(session?.user?.name || session?.user?.email)}
+              </h1>
+              
+              <p className="text-lg text-[#C5C5D2] mb-8 text-center">
+                I'm your AI tax assistant. Ask me anything about taxes or select a topic below.
+              </p>
+              
+              {/* Category filters */}
+              <div className="flex flex-wrap gap-2 justify-center mb-6">
+                {categories.map(category => (
                   <button
-                    key={i}
-                    className="px-4 py-2 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground transition-colors border border-border shadow"
-                    onClick={() => handleSubmit(s)}
+                    key={category}
+                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${selectedCategory === category 
+                      ? 'bg-[#10A37F] text-white' 
+                      : 'bg-[#40414F] text-[#C5C5D2] hover:bg-[#2A2B32]'}`}
+                    onClick={() => handleCategoryChange(category)}
                   >
-                    {s}
+                    {category}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Suggestions grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-4xl">
+                {filteredSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    className="suggestion-card bg-[#40414F] hover:bg-[#2A2B32] p-4 rounded-lg text-left transition-all border border-transparent hover:border-[rgba(255,255,255,0.1)] flex flex-col h-full"
+                    onClick={() => handleSubmit(suggestion.text)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 bg-[#10A37F30] text-[#10A37F] rounded-md p-1">
+                        {suggestion.icon}
+                      </span>
+                      <span className="text-xs uppercase tracking-wider text-[#10A37F]">{suggestion.category}</span>
+                    </div>
+                    <span className="text-sm text-[#ECECF1]">{suggestion.text}</span>
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            messages.map((message, index) => (
-              <ChatMessage key={index} {...message} />
-            ))
-          )}
-        </ScrollArea>
-        <div className="border-t bg-background">
-          <ChatInput
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-            sessionId={sessionId}
-          />
-        </div>
+          </div>
+        ) : (
+          <div>
+            {messages.map((message, index) => {
+              const timestamp = message.timestamp 
+                ? (typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp)
+                : undefined;
+                
+              return (
+                <ChatMessage
+                  key={`${message.role}-${index}`}
+                  role={message.role}
+                  content={message.content}
+                  timestamp={timestamp}
+                />
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
+      
+      <ChatInput 
+        onSubmit={handleSubmit} 
+        isLoading={isLoading} 
+      />
     </div>
   );
 }

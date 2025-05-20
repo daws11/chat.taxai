@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,7 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { signOut } from 'next-auth/react';
-
-// import { Separator } from '@/components/ui/separator';
+import { PlusIcon, LogOutIcon, MessageSquareIcon } from 'lucide-react';
 
 interface ChatSession {
   _id: string;
@@ -30,7 +29,7 @@ interface ChatSidebarProps {
   user?: { name?: string | null; email?: string | null };
 }
 
-export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange, user }: ChatSidebarProps) {
+function ChatSidebarComponent({ sessions, currentSessionId, open, onOpenChange, user }: ChatSidebarProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const isControlled = typeof open === 'boolean' && typeof onOpenChange === 'function';
@@ -38,74 +37,113 @@ export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange, us
   const setSheetOpen = isControlled ? onOpenChange! : setInternalOpen;
   const router = useRouter();
 
-  const handleNewChat = () => {
+  // Memoize expensive function to improve performance
+  const handleNewChat = useCallback(() => {
     setSheetOpen(false);
     router.push('/chat');
+  }, [router, setSheetOpen]);
+
+  // Get today's date and yesterday's date for relative time formatting
+  const today = new Date().toDateString();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayString = yesterday.toDateString();
+
+  // Format date as relative time (Today, Yesterday, or actual date)
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const dateStr = date.toDateString();
+    
+    if (dateStr === today) {
+      return 'Today';
+    } else if (dateStr === yesterdayString) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
   };
 
-  const visibleSessions = showAll ? sessions : sessions.slice(0, 4);
+  const visibleSessions = showAll ? sessions : sessions.slice(0, 10);
 
   return (
     <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="lg:hidden bg-sidebar text-sidebar-foreground">
+        {/* <Button variant="outline" className="lg:hidden">
           Menu
-        </Button>
+        </Button> */}
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0 bg-sidebar text-sidebar-foreground sidebar">
-        <SheetHeader className="p-4">
-          <SheetTitle>
-            {user?.name || user?.email ? `${user.name || user.email}'s Chats` : 'Your Chats'}
-          </SheetTitle>
-        </SheetHeader>
-        <div className="flex flex-col h-full">
-          <Button onClick={handleNewChat} className="mx-4 mb-4 bg-primary text-primary-foreground">
-            New Chat
-          </Button>
-          <ScrollArea className="flex-1 max-h-[60vh]">
-            <div className="flex flex-col gap-2 p-4">
-              {visibleSessions.map((session) => (
-                <Link
-                  key={session._id}
-                  href={`/chat/${session._id}`}
-                  onClick={() => setSheetOpen(false)}
-                  className={`chat-link${session._id === currentSessionId ? ' active' : ''}`}
-                >
-                  <div>
-                    <div className="font-medium truncate">{session.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(session.updatedAt).toLocaleDateString()}
+      <SheetContent side="left" className="w-[280px] sm:w-[300px] p-0 sidebar">
+        <div className="flex flex-col h-full bg-[#202123] text-[#ECECF1]">
+          {/* Header */}
+          <div className="sidebar-header py-4 px-3">
+            <SheetTitle className="text-sm font-medium text-[#ECECF1]">
+              {user?.name || user?.email ? `${user.name || user.email}` : 'TaxAI Chat'}
+            </SheetTitle>
+          </div>
+          
+          {/* New Chat Button */}
+          <div className="px-3 pb-2">
+            <Button 
+              onClick={handleNewChat} 
+              className="w-full justify-start gap-2 bg-transparent hover:bg-[rgba(255,255,255,0.1)] text-[#ECECF1] border border-white/20"
+            >
+              <PlusIcon className="h-4 w-4" />
+              <span>New chat</span>
+            </Button>
+          </div>
+          
+          {/* Chat History */}
+          <div className="mt-4 px-3 text-xs font-medium text-[#8E8EA0] uppercase">
+            Chat History
+          </div>
+          
+          <ScrollArea className="flex-1 my-2">
+            <div className="flex flex-col px-2">
+              {visibleSessions.length > 0 ? (
+                visibleSessions.map((session) => (
+                  <Link
+                    key={session._id}
+                    href={`/chat/${session._id}`}
+                    onClick={() => setSheetOpen(false)}
+                    className={`chat-link ${session._id === currentSessionId ? 'active' : ''}`}
+                  >
+                    <MessageSquareIcon className="h-4 w-4 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{session.title}</div>
+                      <div className="text-xs text-[#8E8EA0] truncate">
+                        {formatDate(session.updatedAt)}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-              {sessions.length > 4 && !showAll && (
-                <button
-                  className="mt-2 text-primary underline text-sm hover:text-primary-foreground"
-                  onClick={() => setShowAll(true)}
-                >
-                  Show more
-                </button>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-center py-6 text-[#8E8EA0] text-sm">
+                  No chat history yet
+                </div>
               )}
-              {sessions.length > 4 && showAll && (
-                <button
-                  className="mt-2 text-muted-foreground underline text-sm hover:text-primary"
-                  onClick={() => setShowAll(false)}
-                >
-                  Show less
-                </button>
+              
+              {sessions.length > 10 && (
+                <div className="text-center py-2">
+                  <button
+                    className="text-[#8E8EA0] text-xs hover:text-[#ECECF1] transition-colors"
+                    onClick={() => setShowAll(!showAll)}
+                  >
+                    {showAll ? 'Show less' : 'Show more'}
+                  </button>
+                </div>
               )}
             </div>
           </ScrollArea>
-          <div className="p-4 border-t mt-auto">
+          
+          {/* User Controls */}
+          <div className="mt-auto p-3 border-t border-white/10">
             <Button
-              variant="destructive"
-              className="w-full"
-              onClick={() =>
-                signOut({ callbackUrl: '/(auth)/login' })
-              }
+              variant="outline"
+              className="w-full justify-start gap-2 bg-transparent hover:bg-[rgba(255,255,255,0.1)] text-[#ECECF1] border border-white/20"
+              onClick={() => signOut({ callbackUrl: '/login' })}
             >
-              Logout
+              <LogOutIcon className="h-4 w-4" />
+              <span>Log out</span>
             </Button>
           </div>
         </div>
@@ -113,3 +151,6 @@ export function ChatSidebar({ sessions, currentSessionId, open, onOpenChange, us
     </Sheet>
   );
 }
+
+// Use memo to prevent unnecessary re-renders
+export const ChatSidebar = memo(ChatSidebarComponent);

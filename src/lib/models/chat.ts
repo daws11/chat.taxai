@@ -18,6 +18,10 @@ const chatSessionSchema = new Schema({
     ref: 'User',
     required: true
   },
+  threadId: {
+    type: String,
+    sparse: true
+  },
   title: {
     type: String,
     required: true

@@ -49,7 +49,7 @@ export default function NavbarWithSidebarClient({ children }: { children: React.
       </nav>
       <div className="flex-1 overflow-y-auto max-h-screen">
         <ChatSidebar
-          key={sessions.length} // force re-render jika sessions berubah
+          key={sessions.length}
           open={sidebarOpen}
           onOpenChange={setSidebarOpen}
           sessions={sessions}
