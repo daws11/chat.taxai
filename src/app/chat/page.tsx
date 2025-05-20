@@ -8,11 +8,29 @@ import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
 import { Bot, FileText, Calculator, HelpCircle, Lightbulb } from 'lucide-react';
 
-interface Message {
+// Update ThreadMessage type to include timestamp
+interface ExtendedThreadMessage extends ThreadMessage {
+  timestamp?: Date;
   role: 'user' | 'assistant';
   content: string;
-  timestamp?: Date;
+  threadId: string;
 }
+
+// Fallback message type for display
+const FALLBACK_MESSAGE: ExtendedThreadMessage = {
+  role: 'assistant',
+  content: 'Sorry, there was an error processing your request.',
+  timestamp: new Date(),
+  threadId: 'fallback'
+};
+
+// Helper function to safely get current session
+const getCurrentSession = (session: ChatSession | null): ChatSession => {
+  if (!session) {
+    throw new Error('Session is required');
+  }
+  return session;
+};
 
 const SUGGESTIONS = [
   {
@@ -61,8 +79,17 @@ function getGreeting(nameOrEmail?: string | null) {
   return `${greet}${nameOrEmail ? ', ' + nameOrEmail : ''}!`;
 }
 
+type ChatSession = {
+  _id: string;
+  threadId: string;
+  title: string;
+  messages: ThreadMessage[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -85,8 +112,10 @@ export default function ChatPage() {
     : SUGGESTIONS;
 
   useEffect(() => {
-    // fetchSessions();
-  }, []);
+    if (status === 'authenticated' && sessionId) {
+      debouncedFetch(sessionId);
+    }
+  }, [status, sessionId, debouncedFetch]);
 
   // const fetchSessions = async () => {
   //   try {

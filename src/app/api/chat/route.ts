@@ -1,4 +1,3 @@
-import { OpenAI } from 'openai';
 import { getServerSession } from 'next-auth';
 import { authConfig } from '@/lib/auth/auth-options';
 import { connectToDatabase } from '@/lib/db';
@@ -19,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { message, sessionId } = await req.json();
+    const { message, sessionId, threadId } = await req.json();
 
     if (!message) {
       return NextResponse.json(
@@ -32,14 +31,27 @@ export async function POST(req: NextRequest) {
 
     // Create or update chat session
     let chatSession;
+    let thread_id = threadId;
+    
     if (sessionId) {
       chatSession = await ChatSession.findById(sessionId);
       if (!chatSession || chatSession.userId.toString() !== session.user.id) {
         return NextResponse.json({ message: 'Session not found' }, { status: 404 });
       }
+      
+      // If this is a new thread for an existing session
+      if (!thread_id) {
+        thread_id = await assistantService.createThread();
+        chatSession.threadId = thread_id;
+        await chatSession.save();
+      }
     } else {
+      // Create a new thread for a new session
+      thread_id = await assistantService.createThread();
+      
       chatSession = new ChatSession({
         userId: session.user.id,
+        threadId: thread_id,
         title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
         messages: [],
       });

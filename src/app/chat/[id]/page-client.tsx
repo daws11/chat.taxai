@@ -5,6 +5,9 @@ import { ChatMessage } from "@/components/chat-message";
 import { ChatInput } from "@/components/chat-input";
 import type { ChatMessageType } from "types/chat";
 
+import { useRouter } from "next/navigation";
+import { FiEdit2, FiTrash2, FiCheck, FiX } from "react-icons/fi";
+
 export default function ChatSessionPageClient() {
   const params = useParams();
   const sessionId = typeof params?.id === "string" ? params.id : undefined;

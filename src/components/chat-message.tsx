@@ -2,16 +2,16 @@
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import type { ThreadMessage } from '@/lib/services/assistant-service';
 
-interface ChatMessageProps {
-  role: 'user' | 'assistant';
-  content: string;
+interface ChatMessageProps extends Omit<ThreadMessage, 'timestamp'> {
   timestamp?: Date;
 }
 
 function ChatMessageComponent({ role, content, timestamp }: ChatMessageProps) {
   // Show loader for empty assistant messages (typing effect)
   const isTyping = role === 'assistant' && !content;
+  
   
   return (
     <div className={cn('chat-row', role)}>
