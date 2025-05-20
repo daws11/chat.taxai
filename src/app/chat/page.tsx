@@ -171,10 +171,10 @@ export default function ChatPage() {
       } catch (err: unknown) {
         const error = err as ErrorWithName;
         clearTimeout(timeoutId);
-        if (err?.name === 'AbortError') {
+        if (error?.name === 'AbortError') {
           throw new Error('Request timed out. Please try again.');
         }
-        throw err;
+        throw error;
       }
     } catch (error) {
       console.error('Error sending message:', error);
