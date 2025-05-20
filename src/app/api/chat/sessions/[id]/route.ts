@@ -4,14 +4,14 @@ import { connectToDatabase } from '@/lib/db';
 import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { setTimeout } from 'timers';
 
 // Handler GET
 export async function GET(
   req: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context: any
+  { params }: { params: { id: string } }
 ) {
-  const { id } = context.params;
+  const id = params.id;
   try {
     const session = await getServerSession(authConfig);
     if (!session?.user?.id) {
