@@ -4,7 +4,6 @@ import { connectToDatabase } from '@/lib/db';
 import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { setTimeout } from 'timers';
 
 // Handler GET
 export async function GET(

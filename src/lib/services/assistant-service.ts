@@ -9,6 +9,9 @@ const ASSISTANT_ID = 'asst_kwYCj2zNJdudMzllrpTjSzGf';
 export interface ThreadMessage {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: Date;
+  threadId?: string;
+  id?: string;
 }
 
 export class AssistantService {
