@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ChatInput } from "@/components/chat-input";
 import { ChatMessages } from "@/components/chat-messages";
 import type { ThreadMessage } from "@/lib/services/assistant-service";
@@ -10,7 +10,6 @@ import { useAssistant } from "@/lib/hooks/use-assistant";
 
 export default function ChatSessionPageClient() {
   const params = useParams();
-  const router = useRouter();
   const sessionId = params.id as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +19,6 @@ export default function ChatSessionPageClient() {
     messages, 
     isLoading, 
     sendMessage, 
-    status,
     error: assistantError 
   } = useAssistant(sessionId);
 

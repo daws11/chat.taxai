@@ -4,7 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppNavbar } from '@/components/app-navbar';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarContent } from '@/components/ui/sidebar';
 
 interface ChatSession {
   _id: string;

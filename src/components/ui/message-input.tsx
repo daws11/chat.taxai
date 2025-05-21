@@ -2,13 +2,13 @@
 
 import React, { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowUp, Info, Loader2, Mic, Paperclip, Square, X } from "lucide-react"
+import { ArrowUp, Info, Loader2, Mic, Paperclip, Square } from "lucide-react"
 import { omit } from "remeda"
 
 import { cn } from "@/lib/utils"
 import { useAudioRecording } from "@/hooks/use-audio-recording"
 import { useAutosizeTextArea } from "@/hooks/use-autosize-textarea"
-import { AudioVisualizer } from "@/components/ui/audio-visualizer"
+// import { AudioVisualizer } from "@/components/ui/audio-visualizer"
 import { Button } from "@/components/ui/button"
 import { FilePreview } from "@/components/ui/file-preview"
 import { InterruptPrompt } from "@/components/ui/interrupt-prompt"
@@ -56,13 +56,13 @@ export function MessageInput({
     isSpeechSupported,
     isRecording,
     isTranscribing,
-    audioStream,
+    // audioStream,
     toggleListening,
     stopRecording,
   } = useAudioRecording({
     transcribeAudio,
     onTranscriptionComplete: (text) => {
-      props.onChange?.({ target: { value: text } } as any)
+      props.onChange?.({ target: { value: text } } as unknown as React.ChangeEvent<HTMLTextAreaElement>)
     },
   })
 
@@ -304,7 +304,7 @@ export function MessageInput({
       <RecordingControls
         isRecording={isRecording}
         isTranscribing={isTranscribing}
-        audioStream={audioStream}
+        // audioStream={audioStream}
         textAreaHeight={textAreaHeight}
         onStopRecording={stopRecording}
       />
@@ -425,7 +425,7 @@ function RecordingPrompt({ isVisible, onStopRecording }: RecordingPromptProps) {
 interface RecordingControlsProps {
   isRecording: boolean
   isTranscribing: boolean
-  audioStream: MediaStream | null
+  // audioStream: MediaStream | null
   textAreaHeight: number
   onStopRecording: () => void
 }
@@ -433,9 +433,9 @@ interface RecordingControlsProps {
 function RecordingControls({
   isRecording,
   isTranscribing,
-  audioStream,
+  // audioStream,
   textAreaHeight,
-  onStopRecording,
+  //onStopRecording,
 }: RecordingControlsProps) {
   if (isRecording) {
     return (
@@ -443,11 +443,11 @@ function RecordingControls({
         className="absolute inset-[1px] z-50 overflow-hidden rounded-xl"
         style={{ height: textAreaHeight - 2 }}
       >
-        <AudioVisualizer
+        {/* <AudioVisualizer
           stream={audioStream}
           isRecording={isRecording}
           onClick={onStopRecording}
-        />
+        /> */}
       </div>
     )
   }

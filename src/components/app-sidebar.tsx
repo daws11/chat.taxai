@@ -1,7 +1,7 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { memo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   SidebarContent,
   SidebarFooter,
@@ -55,7 +55,7 @@ function AppSidebarComponent({
   onSignOut 
 }: AppSidebarProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  // const pathname = usePathname();
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 

@@ -53,13 +53,12 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   const { 
     messages, 
     isLoading: assistantIsLoading, 
     sendMessage, 
-    status,
     error: assistantError 
   } = useAssistant(sessionId || '');
 
