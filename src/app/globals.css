@@ -365,26 +365,26 @@ body {
   .message-container {
     padding: 1rem 0.5rem 7rem 0.5rem;
   }
-  
+
   .chat-row {
     padding: 1rem 0.5rem;
   }
-  
+
   .chat-input-container {
     padding: 0.5rem 0.5rem 1rem;
   }
-  
+
   .chat-input textarea {
     padding: 0.75rem 3rem 0.75rem 0.75rem;
     font-size: 0.9375rem;
     min-height: 2.75rem;
   }
-  
+
   .chat-input button {
     width: 2.25rem;
     height: 2.25rem;
   }
-  
+
   .sidebar {
     width: 85vw !important;
   }

@@ -1,43 +1,49 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { ChatMessage } from "@/components/chat-message";
+import { useParams, useRouter } from "next/navigation";
 import { ChatInput } from "@/components/chat-input";
-import type { ChatMessageType } from "types/chat";
+import { ChatMessages } from "@/components/chat-messages";
+import type { ThreadMessage } from "@/lib/services/assistant-service";
+import { useAssistant } from "@/lib/hooks/use-assistant";
 
 // import { useRouter } from "next/navigation";
 
 export default function ChatSessionPageClient() {
   const params = useParams();
-  const sessionId = typeof params?.id === "string" ? params.id : undefined;
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const sessionId = params.id as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Fetch messages on mount with loading state
+  const { 
+    messages, 
+    isLoading, 
+    sendMessage, 
+    status,
+    error: assistantError 
+  } = useAssistant(sessionId);
+
+  // Handle initial load and errors
   useEffect(() => {
-    if (!sessionId) return;
-    
-    setIsInitialLoad(true);
-    
-    fetch(`/api/chat/sessions/${sessionId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch session');
-        return res.json();
-      })
-      .then((data) => {
-        if (data && data.messages) setMessages(data.messages);
-      })
-      .catch(err => {
-        console.error('Error fetching messages:', err);
-        setError('Failed to load messages. Please try refreshing the page.');
-      })
-      .finally(() => {
-        setIsInitialLoad(false);
-      });
-  }, [sessionId]);
+    if (assistantError) {
+      setError(assistantError);
+    }
+    if (messages.length > 0) {
+      setIsInitialLoad(false);
+    }
+  }, [assistantError, messages]);
+
+  // Handle message submission
+  const handleSubmit = useCallback(async (message: string) => {
+    try {
+      setError(null);
+      await sendMessage(message);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    }
+  }, [sendMessage]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -46,157 +52,73 @@ export default function ChatSessionPageClient() {
     }
   }, [messages]);
 
-  // Memoize handleSubmit to prevent unnecessary renders
-  const handleSubmit = useCallback(async (message: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Create optimistic UI update
-      const userMessage: ChatMessageType = { 
-        role: 'user', 
-        content: message, 
-        timestamp: new Date() 
-      };
-      const assistantMessage: ChatMessageType = { 
-        role: 'assistant', 
-        content: '', 
-        timestamp: new Date() 
-      };
-      
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
-      
-      // Send API request with timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, sessionId, threadId: null }),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to send message");
-        }
-        
-        if (data.message) {
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastAssistantIdx = newMessages.findLastIndex(
-              (m, idx, arr) => m.role === 'assistant' && 
-                            (idx === arr.length - 1 || arr[idx + 1]?.role !== 'assistant')
-            );
-            
-            if (lastAssistantIdx !== -1) {
-              newMessages[lastAssistantIdx] = {
-                role: 'assistant',
-                content: data.message.content,
-                timestamp: new Date()
-              };
-            }
-            
-            return newMessages;
-          });
-          
-          // Trigger sidebar refresh
-          window.dispatchEvent(new Event('chat-session-updated'));
-        }
-      } catch (err: unknown) {
-        clearTimeout(timeoutId);
-        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
-          throw new Error('Request timed out. Please try again.');
-        }
-        throw err;
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setError(error instanceof Error ? error.message : "Something went wrong");
-      setMessages((prev) => {
-        // Remove the last two messages (user + empty assistant)
-        return prev.length >= 2 ? prev.slice(0, -2) : prev;
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId]);
-
-  // Loading skeleton for initial page load
-  const renderLoadingSkeleton = () => (
-    <div className="message-container">
-      {[1, 2, 3].map((n) => (
-        <div key={n} className={`chat-row ${n % 2 === 0 ? 'assistant' : 'user'}`}>
-          <div className="message-container">
-            <div className="flex items-start gap-4">
-              <div className="chat-role-indicator skeleton" style={{opacity: 0.5}}></div>
-              <div className="w-full">
-                <div className="skeleton h-4 w-3/4 mb-2"></div>
-                <div className="skeleton h-4 w-full mb-2"></div>
-                <div className="skeleton h-4 w-1/2"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  // Convert messages to the format expected by ChatMessages
+  const formattedMessages = messages.map((msg: ThreadMessage, index: number) => ({
+    id: `${msg.role}-${index}`,
+    role: msg.role,
+    content: msg.content,
+    createdAt: msg.timestamp 
+      ? (typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp)
+      : new Date()
+  }));
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#343541]">
-      <div className="flex-1 overflow-y-auto pb-32">
-        {error && (
-          <div className="toast-container">
-            <div className="toast error">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12" y2="16"></line>
-              </svg>
-              {error}
+    <div className="flex flex-col h-full w-full">
+      {/* Error Toast */}
+      {error && (
+        <div className="fixed top-4 right-4 z-50">
+          <div className="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12" y2="16"></line>
+            </svg>
+            {error}
+          </div>
+        </div>
+      )}
+        
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto w-full">
+        {isInitialLoad ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="animate-pulse space-y-4 w-full p-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gray-700"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-700 rounded"></div>
+                    <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-        
-        {isInitialLoad ? (
-          renderLoadingSkeleton()
         ) : messages.length === 0 ? (
-          <div className="h-[80vh] flex items-center justify-center text-[#8E8EA0]">
-            <div className="text-center max-w-md">
+          <div className="h-full flex items-center justify-center text-muted-foreground">
+            <div className="text-center p-4">
               <h3 className="text-lg font-medium mb-2">Start a conversation with TaxAI</h3>
               <p className="text-sm">Ask questions about taxes, financial regulations, or get help with tax calculations.</p>
             </div>
           </div>
         ) : (
-          <div>
-            {messages.map((message, index) => {
-              const timestamp = message.timestamp 
-                ? (typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp)
-                : undefined;
-                
-              return (
-                <ChatMessage
-                  key={`${message.role}-${index}`}
-                  role={message.role}
-                  content={message.content}
-                  timestamp={timestamp}
-                />
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+          <ChatMessages 
+            messages={formattedMessages}
+            isTyping={isLoading}
+          />
         )}
+        <div ref={messagesEndRef} />
       </div>
       
-      <ChatInput 
-        onSubmit={handleSubmit} 
-        isLoading={isLoading} 
-        sessionId={sessionId} 
-      />
+      {/* Input Area */}
+      <div className="flex-none border-t bg-background w-full">
+        <ChatInput 
+          onSubmit={handleSubmit} 
+          isGenerating={isLoading}
+          onStop={() => {/* TODO: Implement stop generation */}}
+        />
+      </div>
     </div>
   );
 }

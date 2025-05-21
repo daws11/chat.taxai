@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Menu } from 'lucide-react';
-import { ChatSidebar } from '@/components/chat-sidebar';
-import { useSession } from 'next-auth/react';
+import { AppSidebar } from '@/components/app-sidebar';
+import { AppNavbar } from '@/components/app-navbar';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter, useParams } from 'next/navigation';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from '@/components/ui/sidebar';
 
 interface ChatSession {
   _id: string;
@@ -11,53 +13,76 @@ interface ChatSession {
 }
 
 export default function NavbarWithSidebarClient({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentTitle, setCurrentTitle] = useState<string>('');
   const { data: session } = useSession();
+  const router = useRouter();
+  const params = useParams();
 
   useEffect(() => {
     // Fetch chat sessions for sidebar
     const fetchSessions = () => {
       fetch('/api/chat/sessions')
         .then((res) => res.json())
-        .then((data) => setSessions(data.sessions || []));
+        .then((data) => {
+          setSessions(data.sessions || []);
+          // Set current chat title if we're in a chat session
+          if (params?.id) {
+            const currentSession = data.sessions?.find((s: ChatSession) => s._id === params.id);
+            if (currentSession) {
+              setCurrentTitle(currentSession.title);
+            }
+          }
+        });
     };
     fetchSessions();
     // Listen for custom event to refresh chat sessions
     const handler = () => fetchSessions();
     window.addEventListener('chat-session-updated', handler);
     return () => window.removeEventListener('chat-session-updated', handler);
-  }, []);
+  }, [params?.id]);
+
+  const handleNewChat = () => {
+    router.push('/chat');
+    setCurrentTitle('');
+  };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <nav className="flex items-center justify-between px-4 py-2 border-b bg-background sticky top-0 z-30">
-        <button
-          className="inline-flex items-center justify-center rounded-md p-2 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring lg:ml-0"
-          aria-label="Open menu"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-        <div className="flex flex-col items-center">
-          <span className="font-bold text-lg">TaxAI Chat</span>
-          {session?.user && (
-            <span className="text-xs text-muted-foreground">{session.user.name || session.user.email}</span>
-          )}
-        </div>
-        <div />
-      </nav>
-      <div className="flex-1 overflow-y-auto max-h-screen">
-        <ChatSidebar
-          key={sessions.length}
-          open={sidebarOpen}
-          onOpenChange={setSidebarOpen}
-          sessions={sessions}
-          onSessionSelect={() => {}}
-          user={session?.user}
+    <SidebarProvider defaultOpen>
+      {/* Sidebar is a direct sibling to the main content area */}
+      {/* The Sidebar component is the 'group' */}
+      <Sidebar>
+        <SidebarContent>
+          <AppSidebar
+            sessions={sessions}
+            currentSessionId={params?.id as string}
+            user={session?.user}
+            onNewChat={handleNewChat}
+            onSignOut={() => signOut()}
+          />
+        </SidebarContent>
+      </Sidebar>
+
+      {/* Main content area - this div is the 'peer' and takes remaining space */}
+      {/* The 'peer' class allows the Sidebar to control its layout */}
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden peer">
+        {/* Navbar */}
+        <AppNavbar 
+          title={currentTitle}
         />
+        
+        {/* Chat content area - takes remaining space and centers content */}
+        {/* Use flex justify-center on the parent to center the child max-width div */}
+        <div className="flex-1 overflow-y-auto flex justify-center w-full">
+          {/* Content container with max width */}
+          <div className="w-full max-w-4xl px-4 py-6">
+            {children}
+          </div>
+        </div>
       </div>
-      <main className="flex-1">{children}</main>
-    </div>
+
+      {/* Removed Sidebar Trigger - repositioning to Navbar */}
+
+    </SidebarProvider>
   );
 }

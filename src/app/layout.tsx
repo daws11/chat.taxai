@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TaxAI - Your Personal Tax Assistant",
-  description: "Get expert tax advice with our AI-powered chatbot",
+  title: "Atto - Your Personal Tax Assistant",
+  description: "Get expert tax advice with our Atto - Your Personal Tax Assistant",
 };
 
 export default function RootLayout({
