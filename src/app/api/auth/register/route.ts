@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, email, password } = await req.json();
+    const { username, email, password, jobTitle } = await req.json();
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !jobTitle) {
       return NextResponse.json(
         { message: 'All fields are required' },
         { status: 400 }
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       username,
       email,
       password,
+      jobTitle,
     });
 
     await user.save();

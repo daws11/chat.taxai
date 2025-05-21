@@ -1,6 +1,20 @@
 import { Schema, model, models } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+const jobTitles = [
+  'Tax Accountant',
+  'Tax Consultant',
+  'Tax Auditor (for government tax authorities)',
+  'Tax Manager / Head of Tax (in a company)',
+  'Tax Investigator',
+  'Tax Attorney / Tax Lawyer',
+  'Fiscal Policy Analyst',
+  'Tax Staff / Tax Officer',
+  'Tax Auditor (at a Public Accounting Firm)',
+  'Tax Educator / University Lecturer (in Taxation)',
+  'Other'
+] as const;
+
 const userSchema = new Schema({
   username: {
     type: String,
@@ -18,6 +32,14 @@ const userSchema = new Schema({
     type: String,
     required: [true, 'Password is required'],
     minLength: [6, 'Password must be at least 6 characters long']
+  },
+  jobTitle: {
+    type: String,
+    required: [true, 'Job title is required'],
+    enum: {
+      values: jobTitles,
+      message: 'Please select a valid job title'
+    }
   }
 }, {
   timestamps: true
