@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Verifikasi JWT
-    const user = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
+    jwt.verify(token, process.env.NEXTAUTH_SECRET!);
 
     // Redirect ke halaman utama tanpa query token
     const url = new URL(req.url);
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       maxAge: 30 * 24 * 60 * 60, // 30 hari
     });
     return res;
-  } catch (e) {
+  } catch {
     // Token invalid/expired
     return NextResponse.redirect(new URL('/login', req.url));
   }
