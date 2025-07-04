@@ -1,15 +1,11 @@
-import { getServerSession } from 'next-auth/next';
-import { authConfig } from "@/lib/auth/auth-options";
-import { redirect } from 'next/navigation';
+import { Suspense } from "react";
+import Home from "./Home";
 
-export default async function Home() {
-  const session = await getServerSession(authConfig);
-  
-  if (session) {
-    redirect('/chat');
-  } else {
-    redirect('/login');
-  }
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <Home />
+    </Suspense>
+  );
 }
 
-// Development branch

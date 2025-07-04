@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
     // Set session cookie on the response
     res.cookies.set('next-auth.session-token', token, {
       httpOnly: true,
-      secure: true,
       sameSite: 'lax',
       path: '/',
       maxAge: 30 * 24 * 60 * 60, // 30 hari
     });
     return res;
-  } catch {
+  } catch (err) {
+    console.error('JWT verification failed:', err);
     // Token invalid/expired
     return NextResponse.redirect(new URL('/login', req.url));
   }
