@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const sessionToken = await encode({
       token: sessionPayload,
       secret: process.env.NEXTAUTH_SECRET!,
-      maxAge: 60 * 60, // 1 jam
+      maxAge: 60 * 60 * 24, // 1 hari
     });
     const response = NextResponse.json({ success: true });
     response.cookies.set('next-auth.session-token', sessionToken, {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       //secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60,
+      maxAge: 60 * 60 * 24, // 1 hari
     });
     return response;
   } catch {
