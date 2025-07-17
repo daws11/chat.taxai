@@ -1,26 +1,11 @@
 import { Schema, model, models } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-const jobTitles = [
-  'Tax Accountant',
-  'Tax Consultant',
-  'Tax Auditor (for government tax authorities)',
-  'Tax Manager / Head of Tax (in a company)',
-  'Tax Investigator',
-  'Tax Attorney / Tax Lawyer',
-  'Fiscal Policy Analyst',
-  'Tax Staff / Tax Officer',
-  'Tax Auditor (at a Public Accounting Firm)',
-  'Tax Educator / University Lecturer (in Taxation)',
-  'Other'
-] as const;
-
 const userSchema = new Schema({
-  username: {
+  name: {
     type: String,
-    required: [true, 'Username is required'],
-    unique: true,
-    minLength: [3, 'Username must be at least 3 characters long']
+    required: [true, 'Name is required'],
+    minLength: [3, 'Name must be at least 3 characters long']
   },
   email: {
     type: String,
@@ -36,10 +21,37 @@ const userSchema = new Schema({
   jobTitle: {
     type: String,
     required: [true, 'Job title is required'],
-    enum: {
-      values: jobTitles,
-      message: 'Please select a valid job title'
-    }
+    // enum: {
+    //   values: jobTitles,
+    //   message: 'Please select a valid job title'
+    // }
+  },
+  language: {
+    type: String,
+    default: null
+  },
+  subscription: {
+    type: new Schema({
+      type: { type: String, required: true },
+      status: { type: String, required: true },
+      messageLimit: { type: Number, required: true },
+      remainingMessages: { type: Number, required: true },
+      callSeconds: { type: Number, required: true },
+      startDate: { type: Date, required: true },
+      endDate: { type: Date, required: true },
+      payment: {
+        type: new Schema({
+          amount: { type: Number, required: true },
+          method: { type: String, required: true },
+          lastPaymentDate: { type: Date, required: true },
+          nextPaymentDate: { type: Date, required: true },
+        }, { _id: true })
+      }
+    }, { _id: true })
+  },
+  trialUsed: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

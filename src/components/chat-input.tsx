@@ -7,9 +7,10 @@ interface ChatInputProps {
   onSubmit: (message: string) => void;
   isGenerating?: boolean;
   onStop?: () => void;
+  disabled?: boolean;
 }
 
-export function ChatInput({ onSubmit, isGenerating = false, onStop }: ChatInputProps) {
+export function ChatInput({ onSubmit, isGenerating = false, onStop, disabled = false }: ChatInputProps) {
   const [input, setInput] = useState('');
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -34,6 +35,7 @@ export function ChatInput({ onSubmit, isGenerating = false, onStop }: ChatInputP
         placeholder="Ask Atto anything..."
         enableInterrupt={true}
         allowAttachments={false}
+        disabled={disabled}
       />
     </form>
   );

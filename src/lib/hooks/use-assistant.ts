@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ThreadMessage } from '@/lib/services/assistant-service';
+import { useSession } from 'next-auth/react';
+import { useState as useDialogState } from 'react';
 
 interface UseAssistantReturn {
   messages: ThreadMessage[];
@@ -9,13 +11,17 @@ interface UseAssistantReturn {
   status: 'idle' | 'loading' | 'error' | 'success';
   error: string | null;
   sendMessage: (message: string) => Promise<void>;
+  quotaDialogOpen: boolean;
+  setQuotaDialogOpen: (open: boolean) => void;
 }
 
 export function useAssistant(sessionId: string): UseAssistantReturn {
+  const { update } = useSession();
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [quotaDialogOpen, setQuotaDialogOpen] = useDialogState(false);
 
   // Fetch messages on mount
   useEffect(() => {
@@ -77,6 +83,9 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
         
         const data = await response.json();
         if (!response.ok) {
+          if (data.message === 'Message quota exceeded') {
+            setQuotaDialogOpen(true);
+          }
           throw new Error(data.message || "Failed to send message");
         }
         
@@ -98,7 +107,8 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
             
             return newMessages;
           });
-          
+          // Refresh user session for sidebar progress bar
+          if (update) await update();
           // Trigger sidebar refresh
           window.dispatchEvent(new Event('chat-session-updated'));
           setStatus('success');
@@ -121,13 +131,15 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, update, setQuotaDialogOpen]);
 
   return {
     messages,
     isLoading,
     status,
     error,
-    sendMessage
+    sendMessage,
+    quotaDialogOpen,
+    setQuotaDialogOpen,
   };
 } 

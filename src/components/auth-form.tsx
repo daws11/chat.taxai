@@ -45,7 +45,7 @@ const jobTitles = [
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
-  username: z.string().min(3, 'Username must be at least 3 characters long').optional(),
+  name: z.string().min(3, 'Name must be at least 3 characters long').optional(),
   jobTitle: z.enum(jobTitles, {
     required_error: 'Please select your job title',
   }).optional(),
@@ -67,7 +67,7 @@ export function AuthForm({ type }: AuthFormProps) {
     defaultValues: {
       email: '',
       password: '',
-      username: type === 'register' ? '' : undefined,
+      name: type === 'register' ? '' : undefined,
       jobTitle: type === 'register' ? undefined : undefined,
     },
   });
@@ -126,10 +126,10 @@ export function AuthForm({ type }: AuthFormProps) {
               <>
                 <FormField
                   control={form.control}
-                  name="username"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>

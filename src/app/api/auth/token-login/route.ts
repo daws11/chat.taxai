@@ -21,7 +21,8 @@ export async function POST(req: Request) {
     const sessionPayload = {
       id: user._id.toString(),
       email: user.email,
-      username: user.username,
+      name: user.name,
+      username: user.name, // for JWT compatibility
     };
     const sessionToken = await encode({
       token: sessionPayload,

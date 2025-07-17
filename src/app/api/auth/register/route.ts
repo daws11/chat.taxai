@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, email, password, jobTitle } = await req.json();
+    const { name, email, password, jobTitle } = await req.json();
 
-    if (!username || !email || !password || !jobTitle) {
+    if (!name || !email || !password || !jobTitle) {
       return NextResponse.json(
         { message: 'All fields are required' },
         { status: 400 }
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }],
+      $or: [{ email }, { name }],
     });
 
     if (existingUser) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Create new user
     const user = new User({
-      username,
+      name,
       email,
       password,
       jobTitle,

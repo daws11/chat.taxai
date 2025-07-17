@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Progress } from '@/components/ui/progress';
+
 
 interface ChatSession {
   _id: string;
@@ -42,6 +44,10 @@ interface AppSidebarProps {
   user?: {
     name?: string | null;
     email?: string | null;
+    subscription?: {
+      remainingMessages?: number;
+      messageLimit?: number;
+    };
   };
   onNewChat: () => void;
   onSignOut?: () => void;
@@ -162,6 +168,28 @@ function AppSidebarComponent({
 
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-4">
+          {/* Token Progress Bar */}
+          {user?.subscription && typeof user.subscription.remainingMessages === 'number' && typeof user.subscription.messageLimit === 'number' && (
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-muted-foreground">Message Tokens</span>
+                <span className="text-xs font-medium">{user.subscription.remainingMessages} / {user.subscription.messageLimit}</span>
+              </div>
+              <Progress value={user.subscription.messageLimit === 0 ? 0 : (user.subscription.remainingMessages / user.subscription.messageLimit) * 100} />
+              {/* Warning/Alert */}
+              {user.subscription.remainingMessages <= 10 && user.subscription.remainingMessages > 0 && (
+                <div className="mt-2 text-xs text-yellow-600 font-semibold">
+                  Warning: Your message tokens are running low!
+                </div>
+              )}
+              {user.subscription.remainingMessages === 0 && (
+                <div className="mt-2 text-xs text-red-600 font-semibold">
+                  Your message tokens have run out. <a href="https://dashboard.taxai.ae/dashboard/account?tab=Subscription" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">Upgrade your subscription</a> to continue chatting.
+                </div>
+              )}
+            </div>
+          )}
+          {/* User Info */}
           {user && (
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">

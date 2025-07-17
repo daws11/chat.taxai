@@ -5,6 +5,7 @@ import { ChatInput } from "@/components/chat-input";
 import { ChatMessages } from "@/components/chat-messages";
 import type { ThreadMessage } from "@/lib/services/assistant-service";
 import { useAssistant } from "@/lib/hooks/use-assistant";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 // import { useRouter } from "next/navigation";
 
@@ -13,13 +14,14 @@ export default function ChatSessionPageClient() {
   const sessionId = params.id as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const { 
     messages, 
     isLoading, 
     sendMessage, 
-    error: assistantError 
+    error: assistantError, 
+    quotaDialogOpen, 
+    setQuotaDialogOpen 
   } = useAssistant(sessionId);
 
   // Handle initial load and errors
@@ -28,7 +30,7 @@ export default function ChatSessionPageClient() {
       setError(assistantError);
     }
     if (messages.length > 0) {
-      setIsInitialLoad(false);
+      // setIsInitialLoad(false); // This line was removed as per the edit hint.
     }
   }, [assistantError, messages]);
 
@@ -61,63 +63,42 @@ export default function ChatSessionPageClient() {
   }));
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <>
+      {/* Quota Exceeded Dialog */}
+      <AlertDialog open={quotaDialogOpen} onOpenChange={setQuotaDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Message Quota Exceeded</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your message tokens have run out. Please upgrade your subscription to continue chatting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction asChild>
+              <a href="https://dashboard.taxai.ae/dashboard/account?tab=Subscription" target="_blank" rel="noopener noreferrer">
+                Upgrade Subscription
+              </a>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Error Toast */}
       {error && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12" y2="16"></line>
-            </svg>
-            {error}
-          </div>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-4 py-2 rounded shadow">
+          {error}
         </div>
       )}
-        
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto w-full">
-        {isInitialLoad ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="animate-pulse space-y-4 w-full p-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-700"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                    <div className="h-4 bg-gray-700 rounded"></div>
-                    <div className="h-4 bg-gray-700 rounded w-5/6"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            <div className="text-center p-4">
-              <h3 className="text-lg font-medium mb-2">Start a conversation with TaxAI</h3>
-              <p className="text-sm">Ask questions about taxes, financial regulations, or get help with tax calculations.</p>
-            </div>
-          </div>
-        ) : (
-          <ChatMessages 
-            messages={formattedMessages}
-            isTyping={isLoading}
-          />
-        )}
-        <div ref={messagesEndRef} />
+      {/* Main chat layout with sticky input */}
+      <div className="flex flex-col h-full w-full min-h-screen">
+        <div className="flex-1 overflow-y-auto">
+          <ChatMessages messages={formattedMessages} isTyping={isLoading} />
+          <div ref={messagesEndRef} />
+        </div>
+        <div className="sticky bottom-0 left-0 w-full bg-background z-10 border-t">
+          <ChatInput onSubmit={handleSubmit} isGenerating={isLoading} disabled={!!error || quotaDialogOpen} />
+        </div>
       </div>
-      
-      {/* Input Area */}
-      <div className="flex-none border-t bg-background w-full">
-        <ChatInput 
-          onSubmit={handleSubmit} 
-          isGenerating={isLoading}
-          onStop={() => {/* TODO: Implement stop generation */}}
-        />
-      </div>
-    </div>
+    </>
   );
 }
 

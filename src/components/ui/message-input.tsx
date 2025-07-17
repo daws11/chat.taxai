@@ -46,8 +46,9 @@ export function MessageInput({
   isGenerating,
   enableInterrupt = true,
   transcribeAudio,
+  disabled = false,
   ...props
-}: MessageInputProps) {
+}: MessageInputProps & { disabled?: boolean }) {
   const [isDragging, setIsDragging] = useState(false)
   const [showInterruptPrompt, setShowInterruptPrompt] = useState(false)
 
@@ -136,6 +137,11 @@ export function MessageInput({
   }
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (disabled) {
+      event.preventDefault();
+      alert("Your message tokens have run out. Please upgrade your subscription to continue chatting.");
+      return;
+    }
     if (submitOnEnter && event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
 
@@ -213,6 +219,7 @@ export function MessageInput({
               showFileList && "pb-16",
               className
             )}
+            disabled={disabled}
             {...(props.allowAttachments
               ? omit(props, ["allowAttachments", "files", "setFiles"])
               : omit(props, ["allowAttachments"]))}
@@ -292,7 +299,7 @@ export function MessageInput({
             size="icon"
             className="h-8 w-8 transition-opacity"
             aria-label="Send message"
-            disabled={!props.value.trim() || isGenerating}
+            disabled={!props.value.trim() || isGenerating || disabled}
           >
             <ArrowUp className="h-5 w-5" />
           </Button>

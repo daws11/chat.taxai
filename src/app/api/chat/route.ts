@@ -5,6 +5,7 @@ import { ChatSession } from '@/lib/models/chat';
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { assistantService } from '@/lib/services/assistant-service';
+import { User } from '@/lib/models/user';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -30,6 +31,22 @@ export async function POST(req: NextRequest) {
     }
 
     await connectToDatabase();
+
+    // Ambil user dari database
+    const user = await User.findById(session.user.id);
+    if (!user) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
+    // Cek subscription dan remainingMessages
+    if (!user.subscription || typeof user.subscription.remainingMessages !== 'number') {
+      return NextResponse.json({ message: 'Subscription not found or invalid' }, { status: 403 });
+    }
+    if (user.subscription.remainingMessages <= 0) {
+      return NextResponse.json({ message: 'Message quota exceeded' }, { status: 403 });
+    }
+    // Kurangi remainingMessages
+    user.subscription.remainingMessages -= 1;
+    await user.save();
 
     // Create or update chat session
     let chatSession;
