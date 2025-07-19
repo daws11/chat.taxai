@@ -35,19 +35,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { title = 'New Chat' } = await req.json();
+    const { title = 'New Chat', message: firstMessage } = await req.json();
     await connectToDatabase();
 
     // Create a new thread for this session
     const threadId = await assistantService.createThread();
     
+    // Prepare messages array
+    const messages = [];
+    if (firstMessage) {
+      messages.push({ role: 'user', content: firstMessage });
+    }
+
     // Create a new chat session
     const chatSession = new ChatSession({
       userId: session.user.id,
       threadId,
       title,
-      messages: [],
+      messages,
     });
+
+    // If there is a first message, send it to OpenAI and store the assistant's response
+    let assistantResponse = null;
+    if (firstMessage) {
+      // Add user message to thread
+      await assistantService.sendMessage(threadId, firstMessage);
+      // Get the assistant's response
+      const threadMessages = await assistantService.getThreadMessages(threadId);
+      const lastAssistantMsg = threadMessages.reverse().find(m => m.role === 'assistant');
+      if (lastAssistantMsg) {
+        assistantResponse = lastAssistantMsg.content;
+        chatSession.messages.push({ role: 'assistant', content: assistantResponse });
+      }
+    }
 
     await chatSession.save();
 
@@ -57,6 +77,9 @@ export async function POST(req: Request) {
       threadId: chatSession.threadId,
       createdAt: chatSession.createdAt,
       updatedAt: chatSession.updatedAt,
+      message: assistantResponse
+        ? { role: 'assistant', content: assistantResponse }
+        : undefined,
     });
   } catch (error) {
     console.error('Error creating chat session:', error);

@@ -6,6 +6,7 @@ import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
 import type { ThreadMessage } from '@/lib/services/assistant-service';
 import { useAssistant } from '@/lib/hooks/use-assistant';
+import { Loader2 } from 'lucide-react';
 
 // Sample suggestions for the empty state
 const suggestions = [
@@ -53,7 +54,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false); // NEW
 
   const { 
     messages, 
@@ -76,57 +77,49 @@ export default function ChatPage() {
       
       // Create new session if none exists
       if (!sessionId) {
-        // First create a new session
+        setIsSessionLoading(true); // NEW
+        // First create a new session WITH the first message
         const sessionResponse = await fetch('/api/chat/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            title: message.slice(0, 50) + (message.length > 50 ? '...' : '')
+            title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
+            message // kirim pesan pertama bersamaan
           })
         });
         
         if (sessionResponse.status === 401) {
           router.push('/login');
+          setIsSessionLoading(false); // NEW
           return;
         }
         
         if (!sessionResponse.ok) {
           const errorData = await sessionResponse.json();
+          setIsSessionLoading(false); // NEW
           throw new Error(errorData.message || 'Failed to create chat session');
         }
         
         const sessionData = await sessionResponse.json();
         if (!sessionData._id) {
+          setIsSessionLoading(false); // NEW
           throw new Error('Invalid session response from server');
         }
 
         // Update session ID immediately
         setSessionId(sessionData._id);
-        
-        // Send the initial message
-        const messageResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            message,
-            sessionId: sessionData._id
-          })
-        });
-        
-        if (!messageResponse.ok) {
-          const errorData = await messageResponse.json();
-          throw new Error(errorData.message || 'Failed to send message');
-        }
 
         // Navigate to the new chat
         await router.push(`/chat/${sessionData._id}`);
         
         // Force a router refresh to ensure the page updates
         router.refresh();
+        setIsSessionLoading(false); // NEW
       } else {
         await sendMessage(message);
       }
     } catch (err) {
+      setIsSessionLoading(false); // NEW
       console.error('Error sending message:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
     }
@@ -173,6 +166,15 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full w-full">
+      {/* Loading overlay for session creation */}
+      {isSessionLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="animate-spin w-10 h-10 text-primary" />
+            <span className="text-primary font-medium">Starting new chat...</span>
+          </div>
+        </div>
+      )}
       {/* Error Toast */}
       {error && (
         <div className="fixed top-4 right-4 z-50">
@@ -186,7 +188,6 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto w-full">
         {messages.length === 0 ? (
@@ -244,14 +245,21 @@ export default function ChatPage() {
         )}
         <div ref={messagesEndRef} />
       </div>
-
       {/* Input Area */}
-      <div className="flex-none border-t bg-background w-full">
+      <div className="flex-none border-t bg-background w-full relative">
         <ChatInput 
           onSubmit={handleSubmit}
-          isGenerating={isLoading}
+          isGenerating={isSessionLoading || assistantIsLoading}
           onStop={() => {/* TODO: Implement stop generation */}}
+          disabled={isSessionLoading}
         />
+        {/* Loader for assistant response */}
+        {assistantIsLoading && !isSessionLoading && (
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-2 flex items-center gap-2">
+            <Loader2 className="animate-spin w-5 h-5 text-primary" />
+            <span className="text-primary text-sm">Waiting for response...</span>
+          </div>
+        )}
       </div>
     </div>
   );
