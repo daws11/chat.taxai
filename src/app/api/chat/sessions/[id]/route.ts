@@ -32,6 +32,7 @@ export async function GET(
       title: chatSession.title,
       messages: chatSession.messages,
       updatedAt: chatSession.updatedAt,
+      threadId: chatSession.threadId,
     });
   } catch (error) {
     console.error('Chat session API error:', error);

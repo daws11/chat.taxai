@@ -22,6 +22,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [quotaDialogOpen, setQuotaDialogOpen] = useDialogState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   // Fetch messages on mount
   useEffect(() => {
@@ -37,6 +38,9 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
         if (data && data.messages) {
           setMessages(data.messages);
           setStatus('success');
+        }
+        if (data && data.threadId) {
+          setThreadId(data.threadId);
         }
       })
       .catch((err) => {
@@ -75,7 +79,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, sessionId, threadId: null }),
+          body: JSON.stringify({ message, sessionId, threadId }),
           signal: controller.signal
         });
         
@@ -89,14 +93,31 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
           throw new Error(data.message || "Failed to send message");
         }
         
-        if (data.message) {
+        // Multi-bubble support
+        if (data.messages && Array.isArray(data.messages)) {
+          setMessages((prev) => {
+            // Hapus bubble assistant kosong terakhir (optimistic UI)
+            let newMessages = [...prev];
+            while (newMessages.length && newMessages[newMessages.length - 1].role === 'assistant' && !newMessages[newMessages.length - 1].content) {
+              newMessages.pop();
+            }
+            // Tambahkan semua pesan assistant baru
+            data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }) => {
+              newMessages.push({
+                role: msg.role,
+                content: msg.content,
+                timestamp: new Date()
+              });
+            });
+            return newMessages;
+          });
+        } else if (data.message) {
           setMessages((prev) => {
             const newMessages = [...prev];
             const lastAssistantIdx = newMessages.findLastIndex(
               (m, idx, arr) => m.role === 'assistant' && 
                             (idx === arr.length - 1 || arr[idx + 1]?.role !== 'assistant')
             );
-            
             if (lastAssistantIdx !== -1) {
               newMessages[lastAssistantIdx] = {
                 role: 'assistant',
@@ -104,15 +125,14 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
                 timestamp: new Date()
               };
             }
-            
             return newMessages;
           });
-          // Refresh user session for sidebar progress bar
-          if (update) await update();
-          // Trigger sidebar refresh
-          window.dispatchEvent(new Event('chat-session-updated'));
-          setStatus('success');
         }
+        // Refresh user session for sidebar progress bar
+        if (update) await update();
+        // Trigger sidebar refresh
+        window.dispatchEvent(new Event('chat-session-updated'));
+        setStatus('success');
       } catch (err: unknown) {
         clearTimeout(timeoutId);
         if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
@@ -131,7 +151,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, update, setQuotaDialogOpen]);
+  }, [sessionId, threadId, update, setQuotaDialogOpen]);
 
   return {
     messages,
