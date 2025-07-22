@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
             if (tc.function && tc.function.arguments) {
               try {
                 args = JSON.parse(tc.function.arguments);
-              } catch (e) {
+              } catch {
                 args = tc.function.arguments;
               }
             }
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
             // Jika ingin implementasi nyata, tambahkan logic di sini berdasarkan tc.function.name
             // Contoh: jika file search, log args dan output
             if (tc.function?.name === 'get_tax_information') {
-              const clientId = (args && typeof args === 'object' && 'client_id' in args) ? (args as any).client_id : 'unknown';
+              const clientId = (args && typeof args === 'object' && 'client_id' in args) ? (args as Record<string, unknown>).client_id : 'unknown';
               output = `Dummy tax info for client_id: ${clientId}`;
             }
             // Logging output yang akan dikirim
@@ -205,9 +205,10 @@ export async function POST(req: NextRequest) {
       console.error(`Assistant run did not complete. runId=${run.id}, threadId=${currentThreadId}, finalStatus=${runStatus.status}`);
       throw new Error(`Assistant run did not complete: ${runStatus.status}`);
     }
-    
+
     // Get the assistant's messages
     const messages = await openai.beta.threads.messages.list(currentThreadId);
+    console.log('All messages from OpenAI:', JSON.stringify(messages.data, null, 2));
 
     // Temukan timestamp pesan user terakhir (yang baru saja dikirim)
     const userMessages = messages.data.filter(msg => msg.role === 'user');
@@ -219,6 +220,7 @@ export async function POST(req: NextRequest) {
     const newAssistantMessages = messages.data
       .filter(msg => msg.role === 'assistant' && msg.created_at > lastUserTimestamp)
       .sort((a, b) => a.created_at - b.created_at); // urutkan dari yang paling awal ke paling akhir
+    console.log('Filtered new assistant messages:', JSON.stringify(newAssistantMessages, null, 2));
 
     // Logging dan simpan semua pesan assistant baru ke chatSession.messages
     for (const msg of newAssistantMessages) {
@@ -241,6 +243,7 @@ export async function POST(req: NextRequest) {
       const textContent = msg.content.find(content => content.type === 'text');
       return textContent && 'text' in textContent ? textContent.text.value : '';
     }).filter(Boolean);
+    console.log('assistantResponses to frontend:', assistantResponses);
 
     // Ambil seluruh riwayat percakapan dari database berdasarkan threadId
     const dbHistory = chatSession.messages || [];
@@ -249,12 +252,14 @@ export async function POST(req: NextRequest) {
 
     await chatSession.save();
 
-    return NextResponse.json({
+    const responsePayload = {
       sessionId: chatSession._id,
       messages: assistantResponses.length > 0
         ? assistantResponses.map(content => ({ role: 'assistant', content }))
         : [{ role: 'assistant', content: 'No response from the assistant' }]
-    });
+    };
+    console.log('Final response to frontend:', JSON.stringify(responsePayload, null, 2));
+    return NextResponse.json(responsePayload);
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(

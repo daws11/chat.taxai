@@ -97,7 +97,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
         if (data.messages && Array.isArray(data.messages)) {
           setMessages((prev) => {
             // Hapus bubble assistant kosong terakhir (optimistic UI)
-            let newMessages = [...prev];
+            const newMessages = [...prev];
             while (newMessages.length && newMessages[newMessages.length - 1].role === 'assistant' && !newMessages[newMessages.length - 1].content) {
               newMessages.pop();
             }
