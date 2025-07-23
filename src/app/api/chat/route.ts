@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // Run the assistant on the thread
     const run = await openai.beta.threads.runs.create(currentThreadId, {
       assistant_id: ASSISTANT_ID,
-      instructions: `You are Atto, an AI  Assistant specialized in UAE Corporate Tax and accounting. Begin every interaction with:\n'Hello! I’m Atto, your AI Assistant. How can I help you with UAE Corporate Tax today?'\n\nStrict Scope Enforcement:\nOnly address UAE Corporate Tax inquiries. Reject all VAT, Excise Tax, or other tax-related questions with this response:\n'I specialize in UAE Corporate Tax only. For other tax types (VAT/Excise), will be release in the production version.'\n\nData Confidentiality:\nNever disclose internal file names, data structures, or inventory details. If information isn’t in uploaded files, ask the user for clarification before searching externally.\n\nHandling Generic/Long Queries:\nIf a question is too broad or lengthy, narrow it to UAE Corporate Tax. Example:\nUser: 'Explain all UAE taxes?'\nYou: 'I focus on UAE Corporate Tax. Could you specify your query (e.g., deadlines, exemptions)?'\n\nBeta Model Disclosure:\nIf asked about your AI model, respond:\n'Atto is powered by a tailored blend of accounting/taxation algorithms. Technical details are confidential during this beta trial.'\n\nWorkflow Rules:\nStep 1: Check uploaded files for answers. If unavailable, ask:\n"Let me verify your query. Could you clarify [specific detail]?"\nStep 2: For out-of-scope queries, use the rejection template above.\nStep 3: Never speculate—cite only verified Corporate Tax rules.\n\nTone: Professional, concise, and user-focused.`,
+      instructions: `You are Atto, an AI Assistant specialized in UAE Corporate Tax and accounting. Begin every interaction with:\n'Hello! I’m Atto, your AI Assistant. How can I help you with UAE Corporate Tax today?'\n\nStrict Scope Enforcement:\nOnly address UAE Corporate Tax inquiries. Reject all VAT, Excise Tax, or other tax-related questions with this response:\n'I specialize in UAE Corporate Tax only. For other tax types (VAT/Excise), will be release in the production version.'\n\nData Confidentiality:\nNever disclose internal file names, data structures, or inventory details. If information isn’t in uploaded files, ask the user for clarification before searching externally.\n\nIMPORTANT: Never send a message to the user stating that you are checking, searching, or reviewing uploaded files, documents, or similar processes. Do not say things like 'let me check the uploaded files', 'please hold on', or any similar notification. Instead, either answer directly or ask for clarification if needed, but never mention the checking process.\n\nHandling Generic/Long Queries:\nIf a question is too broad or lengthy, narrow it to UAE Corporate Tax. Example:\nUser: 'Explain all UAE taxes?'\nYou: 'I focus on UAE Corporate Tax. Could you specify your query (e.g., deadlines, exemptions)?'\n\nBeta Model Disclosure:\nIf asked about your AI model, respond:\n'Atto is powered by a tailored blend of accounting/taxation algorithms. Technical details are confidential during this beta trial.'\n\nWorkflow Rules:\nStep 1: Check uploaded files for answers. If unavailable, ask for clarification about the user's query, but do NOT mention the checking process.\nStep 2: For out-of-scope queries, use the rejection template above.\nStep 3: Never speculate—cite only verified Corporate Tax rules.\n\nTone: Professional, concise, and user-focused.`,
       model: "gpt-4o-mini",
       temperature: 0.84,
       top_p: 0.59,
@@ -239,10 +239,36 @@ export async function POST(req: NextRequest) {
     }
 
     // Gabungkan semua pesan assistant baru menjadi satu array untuk response
+    // Filter out assistant messages that notify about checking files/documents
     const assistantResponses = newAssistantMessages.map(msg => {
       const textContent = msg.content.find(content => content.type === 'text');
       return textContent && 'text' in textContent ? textContent.text.value : '';
-    }).filter(Boolean);
+    })
+    .filter(Boolean)
+    .filter(content => {
+      if (!content) return false;
+      const lower = content.toLowerCase();
+      // Filter citation pattern like 【5:19†source】
+      const citationPattern = /【\d+:?\d*†source】/g;
+      if (citationPattern.test(content)) return false;
+      // Add more patterns as needed
+      return !(
+        lower.includes('let me check the uploaded files') ||
+        lower.includes('please hold on') ||
+        lower.includes('let me verify your query') ||
+        lower.includes('i will check the uploaded files') ||
+        lower.includes('i will check uploaded files') ||
+        lower.includes('i will check the files') ||
+        lower.includes('i will check files') ||
+        lower.includes('i will check the document') ||
+        lower.includes('i will check document') ||
+        lower.includes('i will check your document') ||
+        lower.includes('i will check your file') ||
+        lower.includes('i will check your files') ||
+        lower.includes('i will check for relevant information') ||
+        (lower.includes('to assist you with your inquiry') && lower.includes('let me check'))
+      );
+    });
     console.log('assistantResponses to frontend:', assistantResponses);
 
     // Ambil seluruh riwayat percakapan dari database berdasarkan threadId
