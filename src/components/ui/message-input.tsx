@@ -12,6 +12,7 @@ import { useAutosizeTextArea } from "@/hooks/use-autosize-textarea"
 import { Button } from "@/components/ui/button"
 import { FilePreview } from "@/components/ui/file-preview"
 import { InterruptPrompt } from "@/components/ui/interrupt-prompt"
+import { useI18n } from '@/components/i18n-provider';
 
 interface MessageInputBaseProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -49,6 +50,7 @@ export function MessageInput({
   disabled = false,
   ...props
 }: MessageInputProps & { disabled?: boolean }) {
+  const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false)
   const [showInterruptPrompt, setShowInterruptPrompt] = useState(false)
 
@@ -139,7 +141,7 @@ export function MessageInput({
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (disabled) {
       event.preventDefault();
-      alert("Your message tokens have run out. Please upgrade your subscription to continue chatting.");
+      alert(t('tokens_run_out'));
       return;
     }
     if (submitOnEnter && event.key === "Enter" && !event.shiftKey) {
@@ -209,8 +211,8 @@ export function MessageInput({
       <div className="relative flex w-full items-center space-x-2">
         <div className="relative flex-1">
           <textarea
-            aria-label="Write your prompt here"
-            placeholder={placeholder}
+            aria-label={t('write_prompt_here')}
+            placeholder={t('ask_ai')}
             ref={textAreaRef}
             onPaste={onPaste}
             onKeyDown={onKeyDown}

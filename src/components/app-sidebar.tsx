@@ -30,6 +30,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Progress } from '@/components/ui/progress';
+import { useI18n } from './i18n-provider';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 
 interface ChatSession {
@@ -64,6 +66,7 @@ function AppSidebarComponent({
   // const pathname = usePathname();
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { t } = useI18n();
 
   const handleDeleteSession = async (session: ChatSession) => {
     try {
@@ -98,7 +101,7 @@ function AppSidebarComponent({
       <SidebarHeader className="border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-6 w-6 text-primary" />
-          <span className="font-semibold">Talk With Atto</span>
+          <span className="font-semibold">{t('talk_with_atto')}</span>
         </div>
       </SidebarHeader>
 
@@ -111,13 +114,13 @@ function AppSidebarComponent({
               onClick={onNewChat}
             >
               <Plus className="h-4 w-4" />
-              New Chat
+              {t('new_chat')}
             </Button>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('recent_chats')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {sessions.map((session) => (
@@ -168,23 +171,24 @@ function AppSidebarComponent({
 
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-4">
+          <LanguageSwitcher />
           {/* Token Progress Bar */}
           {user?.subscription && typeof user.subscription.remainingMessages === 'number' && typeof user.subscription.messageLimit === 'number' && (
             <div className="mb-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-muted-foreground">Message Tokens</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t('message_tokens')}</span>
                 <span className="text-xs font-medium">{user.subscription.remainingMessages} / {user.subscription.messageLimit}</span>
               </div>
               <Progress value={user.subscription.messageLimit === 0 ? 0 : (user.subscription.remainingMessages / user.subscription.messageLimit) * 100} />
               {/* Warning/Alert */}
               {user.subscription.remainingMessages <= 10 && user.subscription.remainingMessages > 0 && (
                 <div className="mt-2 text-xs text-yellow-600 font-semibold">
-                  Warning: Your message tokens are running low!
+                  {t('warning_tokens_low')}
                 </div>
               )}
               {user.subscription.remainingMessages === 0 && (
                 <div className="mt-2 text-xs text-red-600 font-semibold">
-                  Your message tokens have run out. <a href="https://dashboard.taxai.ae/dashboard/account?tab=Subscription" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">Upgrade your subscription</a> to continue chatting.
+                  {t('tokens_run_out')} <a href="https://dashboard.taxai.ae/dashboard/account?tab=Subscription" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">{t('upgrade_subscription')}</a> {t('to_continue_chatting')}
                 </div>
               )}
             </div>

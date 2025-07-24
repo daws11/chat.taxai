@@ -7,44 +7,45 @@ import { ChatMessages } from '@/components/chat-messages';
 import type { ThreadMessage } from '@/lib/services/assistant-service';
 import { useAssistant } from '@/lib/hooks/use-assistant';
 import { Loader2 } from 'lucide-react';
+import { useI18n } from '@/components/i18n-provider';
 
 // Sample suggestions for the empty state
 const suggestions = [
   {
     id: '1',
-    category: 'General',
+    category: 'category_general',
     icon: '📝',
-    text: 'What are the basic tax filing requirements?'
+    text: 'suggestion_basic_tax'
   },
   {
     id: '2',
-    category: 'Calculation',
+    category: 'category_calculation',
     icon: '🧮',
-    text: 'How do I calculate my income tax?'
+    text: 'suggestion_income_tax'
   },
   {
     id: '3',
-    category: 'Deductions',
+    category: 'category_deductions',
     icon: '💰',
-    text: 'What tax deductions am I eligible for?'
+    text: 'suggestion_deductions'
   },
   {
     id: '4',
-    category: 'Business',
+    category: 'category_business',
     icon: '🏢',
-    text: 'What are the tax implications of starting a business?'
+    text: 'suggestion_business_tax'
   },
   {
     id: '5',
-    category: 'Investment',
+    category: 'category_investment',
     icon: '📈',
-    text: 'How are investment returns taxed?'
+    text: 'suggestion_investment_tax'
   },
   {
     id: '6',
-    category: 'Property',
+    category: 'category_property',
     icon: '🏠',
-    text: 'What tax benefits are available for property owners?'
+    text: 'suggestion_property_benefits'
   }
 ];
 
@@ -55,6 +56,7 @@ export default function ChatPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(false); // NEW
+  const { t } = useI18n();
 
   const { 
     messages, 
@@ -193,9 +195,9 @@ export default function ChatPage() {
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-4">
             <div className="text-center mb-8">
-              <h3 className="text-lg font-medium mb-2">Start a conversation with Atto - Your Personal Tax Assistant</h3>
+              <h3 className="text-lg font-medium mb-2">{t('start_conversation')}</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Ask Atto about taxes, financial regulations, or get help with tax calculations.
+                {t('ask_atto')}
               </p>
               
               {/* Category Filters */}
@@ -210,7 +212,7 @@ export default function ChatPage() {
                         : 'bg-muted hover:bg-muted/80'
                     }`}
                   >
-                    {category}
+                    {t(category)}
                   </button>
                 ))}
               </div>
@@ -221,7 +223,7 @@ export default function ChatPage() {
               {filteredSuggestions.map((suggestion) => (
                 <button
                   key={suggestion.id}
-                  onClick={() => handleSubmit(suggestion.text)}
+                  onClick={() => handleSubmit(t(suggestion.text))}
                   className="bg-card hover:bg-accent p-4 rounded-lg text-left transition-all border border-border hover:border-primary/50 flex flex-col h-full"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -229,10 +231,10 @@ export default function ChatPage() {
                       {suggestion.icon}
                     </span>
                     <span className="text-xs uppercase tracking-wider text-primary">
-                      {suggestion.category}
+                      {t(suggestion.category)}
                     </span>
                   </div>
-                  <span className="text-sm">{suggestion.text}</span>
+                  <span className="text-sm">{t(suggestion.text)}</span>
                 </button>
               ))}
             </div>
