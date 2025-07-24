@@ -10,7 +10,7 @@ interface I18nContextProps {
 
 const I18nContext = createContext<I18nContextProps | undefined>(undefined);
 
-export function I18nProvider({ children, defaultLocale = "en" }: { children: ReactNode; defaultLocale?: string }) {
+export function I18nProvider({ children, defaultLocale = "ar" }: { children: ReactNode; defaultLocale?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [locale, setLocale] = useState<string>(defaultLocale);
