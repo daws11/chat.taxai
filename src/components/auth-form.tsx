@@ -6,7 +6,7 @@ import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Link from 'next/link';
+// import Link from 'next/link';
 import { useI18n } from './i18n-provider';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
 

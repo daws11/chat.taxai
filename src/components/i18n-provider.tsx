@@ -1,6 +1,6 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import {  useSearchParams } from "next/navigation";
 
 interface I18nContextProps {
   locale: string;
@@ -10,8 +10,8 @@ interface I18nContextProps {
 
 const I18nContext = createContext<I18nContextProps | undefined>(undefined);
 
-export function I18nProvider({ children, defaultLocale = "ar" }: { children: ReactNode; defaultLocale?: string }) {
-  const pathname = usePathname();
+export function I18nProvider({ children, defaultLocale = "ar" }: { children: React.ReactNode; defaultLocale?: string }) {
+  // const pathname = usePathname();
   const searchParams = useSearchParams();
   const [locale, setLocale] = useState<string>(defaultLocale);
   const [translations, setTranslations] = useState<Record<string, string>>({});

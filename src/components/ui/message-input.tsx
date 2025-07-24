@@ -39,7 +39,7 @@ type MessageInputProps =
   | MessageInputWithAttachmentsProps
 
 export function MessageInput({
-  placeholder = "Ask AI...",
+  // placeholder = "Ask AI...",
   className,
   onKeyDown: onKeyDownProp,
   submitOnEnter = true,
