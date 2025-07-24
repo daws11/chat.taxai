@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { appWithTranslation } from 'next-i18next';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,11 +20,7 @@ export const metadata: Metadata = {
   description: "Get expert tax advice with our Atto - Your Personal Tax Assistant",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -36,3 +33,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+export default appWithTranslation(AppLayout);
