@@ -35,32 +35,63 @@ export const authConfig: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log('❌ Missing credentials');
           return null;
         }
 
+        console.log('🔐 NextAuth authorize called with:', { email: credentials.email, password: '***' });
+
         try {
           await connectToDatabase();
+          console.log('✅ Database connected');
           
           const user = await User.findOne({ email: credentials.email });
           
           if (!user) {
+            console.log('❌ User not found for email:', credentials.email);
             return null;
           }
+
+          console.log('✅ User found:', {
+            id: user._id,
+            email: user.email,
+            hasPassword: !!user.password,
+            passwordLength: user.password ? user.password.length : 0
+          });
+
+          // Simple password validation - no additional checks
+          if (!user.password) {
+            console.log('❌ User has no password hash');
+            return null;
+          }
+
+          // Debug password comparison
+          console.log('🔍 Comparing passwords...');
+          console.log('Input password length:', credentials.password.length);
+          console.log('Stored hash length:', user.password.length);
 
           const isValid = await user.comparePassword(credentials.password);
+          console.log('Password validation result:', isValid);
           
           if (!isValid) {
+            console.log('❌ Password validation failed');
             return null;
           }
 
-          // Return type matches User interface in next-auth.d.ts
+          console.log('✅ Password validated successfully');
+
+          // Return user data without additional validations
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.name,
+            name: user.name || 'Unknown User',
+            subscription: user.subscription,
+            jobTitle: user.jobTitle,
+            language: user.language,
+            trialUsed: user.trialUsed,
           } as AuthUser;
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('❌ Auth error:', error);
           return null;
         }
       }
@@ -104,6 +135,7 @@ export const authConfig: AuthOptions = {
   },
   pages: {
     signIn: '/login',
+    signOut: 'https://ask.taxai.ae/login',
     error: '/error',
   },
   session: {
@@ -118,13 +150,8 @@ export const authConfig: AuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        // Hanya set domain dan secure di production
-        ...(process.env.NODE_ENV === 'production'
-          ? {
-              secure: true,
-              domain: process.env.COOKIE_DOMAIN || '.taxai.ae',
-            }
-          : {}),
+        secure: process.env.NEXTAUTH_URL?.startsWith('https://') || false,
+        domain: process.env.NEXTAUTH_URL?.includes('localhost') ? undefined : (process.env.COOKIE_DOMAIN || '.taxai.ae'),
       },
     },
   },

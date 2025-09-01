@@ -83,7 +83,7 @@ export default function SettingsLayout({
             sessions={safeSessions}
             user={session?.user}
             onNewChat={handleNewChat}
-            onSignOut={() => signOut()}
+            onSignOut={() => signOut({ callbackUrl: 'https://ask.taxai.ae/login' })}
           />
         </SidebarContent>
       </Sidebar>

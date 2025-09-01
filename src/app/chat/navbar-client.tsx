@@ -58,7 +58,7 @@ export default function NavbarWithSidebarClient({ children }: { children: React.
             currentSessionId={params?.id as string}
             user={session?.user}
             onNewChat={handleNewChat}
-            onSignOut={() => signOut()}
+            onSignOut={() => signOut({ callbackUrl: 'https://ask.taxai.ae/login' })}
           />
         </SidebarContent>
       </Sidebar>
