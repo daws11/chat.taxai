@@ -39,13 +39,15 @@ export const authConfig: AuthOptions = {
           return null;
         }
 
-        console.log('🔐 NextAuth authorize called with:', { email: credentials.email, password: '***' });
+        // Normalize email to avoid case-sensitivity issues across services
+        const normalizedEmail = credentials.email.trim().toLowerCase();
+        console.log('🔐 NextAuth authorize called with:', { email: normalizedEmail, password: '***' });
 
         try {
           await connectToDatabase();
           console.log('✅ Database connected');
           
-          const user = await User.findOne({ email: credentials.email });
+          const user = await User.findOne({ email: normalizedEmail });
           
           if (!user) {
             console.log('❌ User not found for email:', credentials.email);
