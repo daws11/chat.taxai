@@ -7,6 +7,9 @@ declare module "next-auth" {
       messageLimit?: number;
       remainingMessages?: number;
     };
+    language?: string;
+    jobTitle?: string;
+    trialUsed?: boolean;
   }
   interface Session {
     user: User;

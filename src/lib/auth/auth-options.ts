@@ -117,7 +117,7 @@ export const authConfig: AuthOptions = {
           email: token.email as string,
           name: token.name as string,
         };
-        // Add subscription info for sidebar progress bar
+        // Hydrate additional user fields from DB
         const { User } = await import('@/lib/models/user');
         let userDoc = await User.findById(token.id).lean();
         if (Array.isArray(userDoc)) userDoc = userDoc[0];
@@ -130,6 +130,11 @@ export const authConfig: AuthOptions = {
             messageLimit: subscription.messageLimit,
             remainingMessages: subscription.remainingMessages,
           };
+        }
+        if (userDoc && typeof userDoc === 'object' && userDoc !== null) {
+          session.user.language = (userDoc as { language?: string }).language;
+          session.user.jobTitle = (userDoc as { jobTitle?: string }).jobTitle;
+          session.user.trialUsed = (userDoc as { trialUsed?: boolean }).trialUsed;
         }
       }
       return session;

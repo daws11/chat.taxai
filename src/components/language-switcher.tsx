@@ -45,9 +45,26 @@ export function LanguageSwitcher() {
           {languages.map((lang) => (
             <button
               key={lang.code}
-              onClick={() => {
-                setLocale(lang.code);
-                setOpen(false);
+              onClick={async () => {
+                try {
+                  setLocale(lang.code);
+                  await fetch('/api/users/me', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: lang.code }),
+                  });
+                  if (lang.code === 'ar') {
+                    document.documentElement.dir = 'rtl';
+                    document.documentElement.lang = 'ar';
+                    document.body.classList.add('rtl-layout');
+                  } else {
+                    document.documentElement.dir = 'ltr';
+                    document.documentElement.lang = lang.code;
+                    document.body.classList.remove('rtl-layout');
+                  }
+                } finally {
+                  setOpen(false);
+                }
               }}
               className={`w-full text-left px-4 py-2 text-sm transition-colors ${locale === lang.code ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
               aria-pressed={locale === lang.code}

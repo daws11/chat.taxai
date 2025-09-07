@@ -88,11 +88,11 @@ export default function SettingsLayout({
         </SidebarContent>
       </Sidebar>
 
-      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden peer">
+      <div className="flex flex-col flex-1 min-w-0 h-screen peer">
         <AppNavbar title="Settings" />
         
-        <div className="flex-1 overflow-y-auto flex justify-center w-full">
-          <div className="w-full max-w-4xl px-4 py-6">
+        <div className="flex-1 flex justify-center w-full">
+          <div className="w-full max-w-4xl px-4 py-6 overflow-y-auto">
             {children}
           </div>
         </div>
