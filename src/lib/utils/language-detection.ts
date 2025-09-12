@@ -47,7 +47,7 @@ export function detectBrowserLanguage(): SupportedLocale | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    const browserLang = navigator.language || (navigator as any).userLanguage;
+    const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage;
     if (!browserLang) return null;
 
     // Extract language code (e.g., 'en-US' -> 'en')

@@ -16,7 +16,6 @@ export function ChatMessages({ messages, isTyping = false }: ChatMessagesProps) 
         <MessageList
           messages={messages}
           isTyping={isTyping}
-          // @ts-expect-error - TypeScript cache issue
           messageOptions={(message: Message, index: number) => {
             const prevMessage = index > 0 ? messages[index - 1] : null;
             const isConsecutiveAssistant = prevMessage?.role === 'assistant' && message.role === 'assistant';

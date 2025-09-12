@@ -3,7 +3,7 @@
  * This file can be used to test the response cleaning functionality
  */
 
-import { cleanAIResponse, cleanReferences, shouldFilterContent } from './response-cleaner';
+import { cleanAIResponse } from './response-cleaner';
 
 // Test cases for response cleaning
 const testCases = [

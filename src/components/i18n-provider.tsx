@@ -6,7 +6,6 @@ import {
   storeLanguagePreference, 
   isValidLocale, 
   type SupportedLocale,
-  SUPPORTED_LOCALES,
   DEFAULT_LOCALE 
 } from "@/lib/utils/language-detection";
 

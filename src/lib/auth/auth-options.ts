@@ -19,10 +19,17 @@ import { connectToDatabase } from '@/lib/db';
 //   }
 // }
 
-// Define a Subscription type for clarity
-interface Subscription {
-  messageLimit?: number;
-  remainingMessages?: number;
+// Define types for user document
+interface UserSubscription {
+  messageLimit: number;
+  remainingMessages: number;
+}
+
+interface UserDocument {
+  subscription?: UserSubscription;
+  language?: string;
+  jobTitle?: string;
+  trialUsed?: boolean;
 }
 
 export const authConfig: AuthOptions = {
@@ -127,17 +134,18 @@ export const authConfig: AuthOptions = {
               .lean();
             
             if (userDoc) {
-              if (userDoc.subscription) {
+              const typedUserDoc = userDoc as UserDocument;
+              if (typedUserDoc.subscription) {
                 session.user.subscription = {
-                  messageLimit: userDoc.subscription.messageLimit,
-                  remainingMessages: userDoc.subscription.remainingMessages,
+                  messageLimit: typedUserDoc.subscription.messageLimit,
+                  remainingMessages: typedUserDoc.subscription.remainingMessages,
                 };
                 // Update cached subscription in token
-                token.subscription = userDoc.subscription;
+                token.subscription = typedUserDoc.subscription;
               }
-              session.user.language = userDoc.language;
-              session.user.jobTitle = userDoc.jobTitle;
-              session.user.trialUsed = userDoc.trialUsed;
+              session.user.language = typedUserDoc.language;
+              session.user.jobTitle = typedUserDoc.jobTitle;
+              session.user.trialUsed = typedUserDoc.trialUsed;
             }
           } catch (error) {
             console.error('Error fetching user data in session callback:', error);

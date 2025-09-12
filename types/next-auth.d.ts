@@ -21,6 +21,10 @@ declare module "next-auth/jwt" {
     id: string
     email: string
     username: string
+    subscription?: {
+      messageLimit?: number;
+      remainingMessages?: number;
+    };
   }
 }
 

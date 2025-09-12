@@ -180,7 +180,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
             }
             
             // Add all new messages, ensuring proper separation
-            data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }, index: number) => {
+            data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }) => {
               newMessages.push({
                 role: msg.role,
                 content: msg.content,
@@ -211,7 +211,7 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
             
             // Find the last empty assistant message to replace
             const lastAssistantIdx = newMessages.findLastIndex(
-              (m, idx, arr) => m.role === 'assistant' && !m.content
+              (m) => m.role === 'assistant' && !m.content
             );
             if (lastAssistantIdx !== -1) {
               newMessages[lastAssistantIdx] = {

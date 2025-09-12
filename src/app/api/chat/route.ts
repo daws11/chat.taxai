@@ -369,13 +369,13 @@ Tone: Professional, concise, and user-focused.`,
 
     // Get the last user message with attachments for display
     const lastUserMessage = chatSession.messages
-      .filter((msg: any) => msg.role === 'user')
+      .filter((msg: { role: string }) => msg.role === 'user')
       .pop();
     
     console.log('Last user message from DB:', JSON.stringify(lastUserMessage, null, 2));
     
     // Also get the second-to-last user message (text message) if it exists
-    const allUserMessages = chatSession.messages.filter((msg: any) => msg.role === 'user');
+    const allUserMessages = chatSession.messages.filter((msg: { role: string }) => msg.role === 'user');
     const secondLastUserMessage = allUserMessages.length > 1 ? allUserMessages[allUserMessages.length - 2] : null;
     
     console.log('Second last user message from DB:', JSON.stringify(secondLastUserMessage, null, 2));

@@ -4,7 +4,6 @@ import { Globe, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { 
   getSupportedLocalesWithNames, 
-  getLocaleDisplayName,
   type SupportedLocale 
 } from '@/lib/utils/language-detection';
 

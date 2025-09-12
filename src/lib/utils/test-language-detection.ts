@@ -6,9 +6,7 @@ import {
   detectLanguage, 
   detectBrowserLanguage, 
   detectUrlLanguage, 
-  detectStoredLanguage,
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES 
+  DEFAULT_LOCALE
 } from './language-detection';
 
 // Mock URLSearchParams for testing
@@ -93,7 +91,7 @@ export function runLanguageDetectionTests(): void {
   console.log('Test 6: Browser language detection');
   // Mock navigator for testing
   const originalNavigator = global.navigator;
-  (global as any).navigator = { language: 'en-US' };
+  (global as { navigator: { language: string } }).navigator = { language: 'en-US' };
   
   const browserDetected = detectBrowserLanguage();
   if (browserDetected === 'en') {
@@ -105,12 +103,12 @@ export function runLanguageDetectionTests(): void {
   }
   
   // Restore original navigator
-  (global as any).navigator = originalNavigator;
+  (global as { navigator: typeof originalNavigator }).navigator = originalNavigator;
   console.log('---\n');
 
   // Test 7: Arabic browser language detection
   console.log('Test 7: Arabic browser language detection');
-  (global as any).navigator = { language: 'ar-SA' };
+  (global as { navigator: { language: string } }).navigator = { language: 'ar-SA' };
   
   const arabicDetected = detectBrowserLanguage();
   if (arabicDetected === 'ar') {
@@ -122,12 +120,12 @@ export function runLanguageDetectionTests(): void {
   }
   
   // Restore original navigator
-  (global as any).navigator = originalNavigator;
+  (global as { navigator: typeof originalNavigator }).navigator = originalNavigator;
   console.log('---\n');
 
   // Test 8: Unsupported browser language should return null
   console.log('Test 8: Unsupported browser language should return null');
-  (global as any).navigator = { language: 'fr-FR' };
+  (global as { navigator: { language: string } }).navigator = { language: 'fr-FR' };
   
   const unsupportedDetected = detectBrowserLanguage();
   if (unsupportedDetected === null) {
@@ -139,7 +137,7 @@ export function runLanguageDetectionTests(): void {
   }
   
   // Restore original navigator
-  (global as any).navigator = originalNavigator;
+  (global as { navigator: typeof originalNavigator }).navigator = originalNavigator;
   console.log('---\n');
 
   console.log(`📊 Test Results: ${passed} passed, ${failed} failed`);
