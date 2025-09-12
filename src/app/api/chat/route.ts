@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { assistantService } from '@/lib/services/assistant-service';
 import { User } from '@/lib/models/user';
+import { cleanAIResponse } from '@/lib/utils/response-cleaner';
+import { deductUserTokens, addUserTokens } from '@/lib/utils/token-utils';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -21,7 +23,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { message, sessionId, threadId } = await req.json();
+    // Check if request is FormData (file upload) or JSON
+    const contentType = req.headers.get('content-type') || '';
+    let message: string;
+    let sessionId: string;
+    let threadId: string;
+    let files: File[] = [];
+
+    if (contentType.includes('multipart/form-data')) {
+      // Handle FormData
+      const formData = await req.formData();
+      message = formData.get('message') as string;
+      sessionId = formData.get('sessionId') as string;
+      threadId = formData.get('threadId') as string;
+      const uploadedFiles = formData.getAll('files') as File[];
+      files = uploadedFiles.filter(file => file.size > 0); // Filter out empty files
+    } else {
+      // Handle JSON
+      const body = await req.json();
+      message = body.message;
+      sessionId = body.sessionId;
+      threadId = body.threadId;
+      files = body.files || [];
+    }
 
     if (!message) {
       return NextResponse.json(
@@ -44,14 +68,20 @@ export async function POST(req: NextRequest) {
     if (user.subscription.remainingMessages <= 0) {
       return NextResponse.json({ message: 'Message quota exceeded' }, { status: 403 });
     }
-    // Kurangi remainingMessages
-    user.subscription.remainingMessages -= 1;
-    await user.save();
+    
+    // Deduct tokens using utility function
+    const tokenResult = await deductUserTokens(session.user.id, 1);
+    if (!tokenResult.success) {
+      return NextResponse.json({ 
+        message: tokenResult.error || 'Failed to deduct tokens' 
+      }, { status: 403 });
+    }
 
-    // Create or update chat session
-    let chatSession;
-    // Use the threadId from request or initialize as null
-    let currentThreadId = threadId || null;
+    try {
+      // Create or update chat session
+      let chatSession;
+      // Use the threadId from request or initialize as null
+      let currentThreadId = threadId || null;
     
     if (sessionId) {
       chatSession = await ChatSession.findById(sessionId);
@@ -84,65 +114,145 @@ export async function POST(req: NextRequest) {
     chatSession.messages.push({
       role: 'user',
       content: message,
+      attachments: files ? files.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size
+      })) : undefined
     });
 
     // We already have the thread ID from earlier in the code
     // Make sure we're using the thread ID from the chat session
     currentThreadId = chatSession.threadId;
     
-    // Add the message to the thread
-    await openai.beta.threads.messages.create(currentThreadId, {
-      role: 'user',
-      content: message
-    });
+    if (!currentThreadId) {
+      return NextResponse.json({ message: 'Thread ID not found' }, { status: 500 });
+    }
+    
+    // Handle file uploads if any
+    const fileIds: string[] = [];
+    if (files && files.length > 0) {
+      console.log('Processing file uploads:', files);
+      
+      // Upload files to OpenAI
+      for (const file of files) {
+        try {
+          // Validate file size (max 20MB per file)
+          if (file.size > 20 * 1024 * 1024) {
+            console.error(`File ${file.name} is too large. Maximum size is 20MB.`);
+            continue;
+          }
+
+          // Validate file type - based on OpenAI file search supported types
+          const allowedTypes = [
+            // Text documents
+            'text/plain',
+            'text/markdown',
+            'text/html',
+            // PDF documents
+            'application/pdf',
+            // Microsoft Office documents
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            // Code files
+            'text/x-c',
+            'text/x-c++',
+            'text/x-csharp',
+            'text/x-java',
+            'text/x-python',
+            'text/x-ruby',
+            'text/x-php',
+            'text/javascript',
+            'text/typescript',
+            'text/x-sh',
+            'text/css',
+            'application/json',
+            'text/x-tex',
+            // Additional supported types
+            'application/rtf',
+            'text/csv' // CSV is supported for code interpreter but not file search
+          ];
+
+          if (!allowedTypes.includes(file.type)) {
+            console.error(`File type ${file.type} is not supported.`);
+            continue;
+          }
+
+          // Upload file to OpenAI
+          const uploadedFile = await openai.files.create({
+            file: file,
+            purpose: 'assistants'
+          });
+          
+          fileIds.push(uploadedFile.id);
+          console.log(`File uploaded successfully: ${file.name} (ID: ${uploadedFile.id})`);
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          // Continue with other files even if one fails
+        }
+      }
+    }
+    
+    // Add the message to the thread with file attachments
+    if (fileIds.length > 0) {
+      // Send message with file attachments using the correct format
+      await openai.beta.threads.messages.create(currentThreadId, {
+        role: 'user',
+        content: message,
+        attachments: fileIds.map(fileId => ({
+          file_id: fileId,
+          tools: [{ type: 'file_search' }, { type: 'code_interpreter' }]
+        }))
+      });
+    } else {
+      await openai.beta.threads.messages.create(currentThreadId, {
+        role: 'user',
+        content: message
+      });
+    }
     
     // Run the assistant on the thread
     const run = await openai.beta.threads.runs.create(currentThreadId, {
       assistant_id: ASSISTANT_ID,
-      instructions: `You are Atto, an AI Assistant specialized in UAE Corporate Tax and accounting. Begin every interaction with:\n'Hello! I’m Atto, your AI Assistant. How can I help you with UAE Corporate Tax today?'\n\nStrict Scope Enforcement:\nOnly address UAE Corporate Tax inquiries. Reject all VAT, Excise Tax, or other tax-related questions with this response:\n'I specialize in UAE Corporate Tax only. For other tax types (VAT/Excise), will be release in the production version.'\n\nData Confidentiality:\nNever disclose internal file names, data structures, or inventory details. If information isn’t in uploaded files, ask the user for clarification before searching externally.\n\nIMPORTANT: Never send a message to the user stating that you are checking, searching, or reviewing uploaded files, documents, or similar processes. Do not say things like 'let me check the uploaded files', 'please hold on', or any similar notification. Instead, either answer directly or ask for clarification if needed, but never mention the checking process.\n\nHandling Generic/Long Queries:\nIf a question is too broad or lengthy, narrow it to UAE Corporate Tax. Example:\nUser: 'Explain all UAE taxes?'\nYou: 'I focus on UAE Corporate Tax. Could you specify your query (e.g., deadlines, exemptions)?'\n\nBeta Model Disclosure:\nIf asked about your AI model, respond:\n'Atto is powered by a tailored blend of accounting/taxation algorithms. Technical details are confidential during this beta trial.'\n\nWorkflow Rules:\nStep 1: Check uploaded files for answers. If unavailable, ask for clarification about the user's query, but do NOT mention the checking process.\nStep 2: For out-of-scope queries, use the rejection template above.\nStep 3: Never speculate—cite only verified Corporate Tax rules.\n\nTone: Professional, concise, and user-focused.`,
-      model: "gpt-4o-mini",
+      instructions: `You are Atto, an AI Assistant specialized in UAE Corporate Tax and accounting. You have access to code interpreter and file search capabilities to analyze uploaded documents.\n\nWhen users upload documents:\n1. Use code interpreter to analyze the content of uploaded files\n2. Extract relevant tax information, financial data, and compliance requirements\n3. Provide detailed analysis and recommendations based on the document content\n4. Use file search to find specific information within the documents\n5. Create visualizations, calculations, or summaries as needed using code interpreter\n\nFor UAE Corporate Tax inquiries:\n- Analyze financial statements, tax returns, and compliance documents\n- Calculate tax obligations and identify potential issues\n- Provide guidance on tax planning and compliance\n- Explain complex tax concepts with examples from the uploaded documents\n\nIMPORTANT: When analyzing uploaded files:\n- Always examine the document content thoroughly using available tools\n- Provide specific insights based on the actual document data\n- Use code interpreter to perform calculations, create charts, or generate summaries\n- Never mention that you are "checking" or "reviewing" files - just provide the analysis directly\n\nCRITICAL: NO REFERENCES OR CITATIONS:\n- Never include any references, citations, or source indicators in your responses\n- Do not use patterns like 【5:19†source】, [1], [2], or any citation formats\n- Do not mention "according to the document", "as stated in", "based on the file", or similar phrases\n- Provide direct answers without indicating sources or references\n\nTone: Professional, analytical, and user-focused. Focus on providing actionable insights based on the uploaded documents. Core Guidelines:
+Strict Scope Enforcement:
+
+"Only address UAE Corporate Tax inquiries. Reject all VAT, Excise Tax, or other tax-related questions with this response:
+'I specialize in UAE Corporate Tax only. For other tax types (VAT/Excise), will be release in the production version.'"
+
+Data Confidentiality:
+
+"Never disclose internal file names, data structures, or inventory details. If information isn’t in uploaded files, ask the user for clarification before searching externally."
+
+Handling Generic/Long Queries:
+
+"If a question is too broad or lengthy, narrow it to UAE Corporate Tax. Example:
+User: 'Explain all UAE taxes?'
+You: 'I focus on UAE Corporate Tax. Could you specify your query (e.g., deadlines, exemptions)?'"
+
+Beta Model Disclosure:
+
+"If asked about your AI model, respond:
+'Atto is powered by a tailored blend of accounting/taxation algorithms. Technical details are confidential during this beta trial.'"
+
+Workflow Rules:
+✅ Step 1: Check uploaded files for answers. If unavailable, ask:
+"Let me verify your query. Could you clarify [specific detail]?"
+✅ Step 2: For out-of-scope queries, use the rejection template above.
+✅ Step 3: Never speculate—cite only verified Corporate Tax rules.
+
+Example Interaction:
+User: "What’s the VAT registration threshold?"
+Atto: "I specialize in UAE Corporate Tax. For VAT, it will be available in the production version"
+
+Tone: Professional, concise, and user-focused.`,
+      model: "gpt-4.1-mini",
       temperature: 0.84,
       top_p: 0.59,
       tools: [
         { type: "file_search" },
-        { type: "code_interpreter" },
-        {
-          type: "function",
-          function: {
-            name: "get_tax_information",
-            description: "Answer Client inquiry and get tax information based on the attached document provided in Arabic and English.",
-            parameters: {
-              type: "object",
-              required: ["client_id", "document", "strict"],
-              properties: {
-                client_id: {
-                  type: "string",
-                  description: "Unique identifier for the client"
-                },
-                document: {
-                  type: "object",
-                  properties: {
-                    arabic: {
-                      type: "string",
-                      description: "Tax information document in Arabic"
-                    },
-                    english: {
-                      type: "string",
-                      description: "Tax information document in English"
-                    }
-                  },
-                  additionalProperties: false,
-                  required: ["arabic", "english"]
-                },
-                strict: {
-                  type: "boolean",
-                  description: "Flag to enforce strict inquiry protocols"
-                }
-              },
-              additionalProperties: false
-            }
-          }
-        }
+        { type: "code_interpreter" }
       ],
       response_format: { type: "text" }
     });
@@ -150,7 +260,7 @@ export async function POST(req: NextRequest) {
     // Poll for the run completion with timeout and status handling
     let runStatus = await openai.beta.threads.runs.retrieve(currentThreadId, run.id);
     const start = Date.now();
-    const TIMEOUT_MS = 30000; // 30 detik
+    const TIMEOUT_MS = 60000; // 60 detik untuk complex queries
     while (
       runStatus.status !== 'completed' &&
       runStatus.status !== 'failed' &&
@@ -240,35 +350,14 @@ export async function POST(req: NextRequest) {
 
     // Gabungkan semua pesan assistant baru menjadi satu array untuk response
     // Filter out assistant messages that notify about checking files/documents
-    const assistantResponses = newAssistantMessages.map(msg => {
-      const textContent = msg.content.find(content => content.type === 'text');
-      return textContent && 'text' in textContent ? textContent.text.value : '';
-    })
-    .filter(Boolean)
-    .filter(content => {
-      if (!content) return false;
-      const lower = content.toLowerCase();
-      // Filter citation pattern like 【5:19†source】
-      const citationPattern = /【\d+:?\d*†source】/g;
-      if (citationPattern.test(content)) return false;
-      // Add more patterns as needed
-      return !(
-        lower.includes('let me check the uploaded files') ||
-        lower.includes('please hold on') ||
-        lower.includes('let me verify your query') ||
-        lower.includes('i will check the uploaded files') ||
-        lower.includes('i will check uploaded files') ||
-        lower.includes('i will check the files') ||
-        lower.includes('i will check files') ||
-        lower.includes('i will check the document') ||
-        lower.includes('i will check document') ||
-        lower.includes('i will check your document') ||
-        lower.includes('i will check your file') ||
-        lower.includes('i will check your files') ||
-        lower.includes('i will check for relevant information') ||
-        (lower.includes('to assist you with your inquiry') && lower.includes('let me check'))
-      );
-    });
+    const assistantResponses = newAssistantMessages
+      .map(msg => {
+        const textContent = msg.content.find(content => content.type === 'text');
+        return textContent && 'text' in textContent ? textContent.text.value : '';
+      })
+      .filter(Boolean)
+      .map(content => cleanAIResponse(content))
+      .filter(Boolean) as string[];
     console.log('assistantResponses to frontend:', assistantResponses);
 
     // Ambil seluruh riwayat percakapan dari database berdasarkan threadId
@@ -278,14 +367,44 @@ export async function POST(req: NextRequest) {
 
     await chatSession.save();
 
+    // Get the last user message with attachments for display
+    const lastUserMessage = chatSession.messages
+      .filter((msg: any) => msg.role === 'user')
+      .pop();
+    
+    console.log('Last user message from DB:', JSON.stringify(lastUserMessage, null, 2));
+    
+    // Also get the second-to-last user message (text message) if it exists
+    const allUserMessages = chatSession.messages.filter((msg: any) => msg.role === 'user');
+    const secondLastUserMessage = allUserMessages.length > 1 ? allUserMessages[allUserMessages.length - 2] : null;
+    
+    console.log('Second last user message from DB:', JSON.stringify(secondLastUserMessage, null, 2));
+
     const responsePayload = {
       sessionId: chatSession._id,
       messages: assistantResponses.length > 0
         ? assistantResponses.map(content => ({ role: 'assistant', content }))
-        : [{ role: 'assistant', content: 'No response from the assistant' }]
+        : [{ role: 'assistant', content: 'No response from the assistant' }],
+      // Include user message with attachments for display
+      userMessage: lastUserMessage ? {
+        role: lastUserMessage.role,
+        content: lastUserMessage.content,
+        attachments: lastUserMessage.attachments || [],
+        timestamp: lastUserMessage.timestamp
+      } : null
     };
-    console.log('Final response to frontend:', JSON.stringify(responsePayload, null, 2));
-    return NextResponse.json(responsePayload);
+      console.log('Final response to frontend:', JSON.stringify(responsePayload, null, 2));
+      return NextResponse.json(responsePayload);
+    } catch (error) {
+      // Rollback token deduction if there's an error
+      console.error('Error processing message, rolling back token:', error);
+      try {
+        await addUserTokens(session.user.id, 1);
+      } catch (rollbackError) {
+        console.error('Failed to rollback token:', rollbackError);
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(

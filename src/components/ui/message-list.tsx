@@ -13,7 +13,7 @@ interface MessageListProps {
   isTyping?: boolean
   messageOptions?:
     | AdditionalMessageOptions
-    | ((message: Message) => AdditionalMessageOptions)
+    | ((message: Message, index: number) => AdditionalMessageOptions)
 }
 
 export function MessageList({
@@ -27,12 +27,12 @@ export function MessageList({
       {messages.map((message, index) => {
         const additionalOptions =
           typeof messageOptions === "function"
-            ? messageOptions(message)
+            ? messageOptions(message, index)
             : messageOptions
 
         return (
           <ChatMessage
-            key={index}
+            key={`${message.role}-${index}-${message.content?.slice(0, 20)}`}
             showTimeStamp={showTimeStamps}
             {...message}
             {...additionalOptions}

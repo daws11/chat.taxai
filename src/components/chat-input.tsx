@@ -4,7 +4,7 @@ import { useState, ChangeEvent, FormEvent } from 'react';
 import { MessageInput } from '@/components/ui/message-input';
 
 interface ChatInputProps {
-  onSubmit: (message: string) => void;
+  onSubmit: (message: string, files?: File[]) => void;
   isGenerating?: boolean;
   onStop?: () => void;
   disabled?: boolean;
@@ -12,6 +12,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSubmit, isGenerating = false, onStop, disabled = false }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [files, setFiles] = useState<File[] | null>(null);
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -19,9 +20,10 @@ export function ChatInput({ onSubmit, isGenerating = false, onStop, disabled = f
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (input.trim()) {
-      onSubmit(input);
+    if (input.trim() || (files && files.length > 0)) {
+      onSubmit(input, files || undefined);
       setInput('');
+      setFiles(null);
     }
   };
 
@@ -34,7 +36,9 @@ export function ChatInput({ onSubmit, isGenerating = false, onStop, disabled = f
         stop={onStop}
         placeholder="Ask Atto anything..."
         enableInterrupt={true}
-        allowAttachments={false}
+        allowAttachments={true}
+        files={files}
+        setFiles={setFiles}
         disabled={disabled}
       />
     </form>

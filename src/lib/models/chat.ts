@@ -1,5 +1,24 @@
 import { Schema, model, models } from 'mongoose';
 
+const attachmentSchema = new Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    required: true
+  },
+  size: {
+    type: Number,
+    required: true
+  },
+  fileId: {
+    type: String,
+    required: false
+  }
+}, { _id: false });
+
 const messageSchema = new Schema({
   role: {
     type: String,
@@ -9,6 +28,11 @@ const messageSchema = new Schema({
   content: {
     type: String,
     required: true
+  },
+  attachments: [attachmentSchema],
+  timestamp: {
+    type: Date,
+    default: Date.now
   }
 });
 
@@ -30,5 +54,10 @@ const chatSessionSchema = new Schema({
 }, {
   timestamps: true
 });
+
+// Add indexes for better performance
+chatSessionSchema.index({ userId: 1, updatedAt: -1 }); // For user's chat sessions ordered by update time
+chatSessionSchema.index({ threadId: 1 }); // For thread-based queries
+chatSessionSchema.index({ createdAt: -1 }); // For general chat session queries
 
 export const ChatSession = models.ChatSession || model('ChatSession', chatSessionSchema);

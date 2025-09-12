@@ -12,6 +12,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { FilePreview } from "@/components/ui/file-preview"
+import { AttachmentDisplay } from "@/components/ui/attachment-display"
 import MarkdownRenderer from "@/components/ui/markdown-renderer"
 
 const chatBubbleVariants = cva(
@@ -111,6 +112,12 @@ export interface Message {
   content: string
   createdAt?: Date
   experimental_attachments?: Attachment[]
+  attachments?: Array<{
+    name: string
+    type: string
+    size: number
+    fileId?: string
+  }>
   toolInvocations?: ToolInvocation[]
   parts?: MessagePart[]
 }
@@ -129,6 +136,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   animation = "scale",
   actions,
   experimental_attachments,
+  attachments,
   toolInvocations,
   parts,
 }) => {
@@ -152,7 +160,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       <div
         className={cn("flex flex-col", isUser ? "items-end" : "items-start")}
       >
-        {files ? (
+        {/* Display attachments if available - show as separate bubble content */}
+        {attachments && attachments.length > 0 ? (
+          <div className="mb-2">
+            <AttachmentDisplay 
+              files={attachments.map(att => new File([], att.name, {
+                type: att.type,
+                lastModified: Date.now()
+              }))} 
+              className="mb-2"
+            />
+          </div>
+        ) : files ? (
           <div className="mb-1 flex flex-wrap gap-2">
             {files.map((file, index) => {
               return <FilePreview file={file} key={index} />

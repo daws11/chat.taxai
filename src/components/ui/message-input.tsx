@@ -351,7 +351,8 @@ function showFileUploadDialog() {
 
   input.type = "file"
   input.multiple = true
-  input.accept = "*/*"
+  // Accept only OpenAI supported file types
+  input.accept = ".txt,.md,.html,.pdf,.doc,.docx,.pptx,.c,.cpp,.cs,.java,.py,.rb,.php,.js,.ts,.sh,.css,.json,.tex,.rtf,.csv"
   input.click()
 
   return new Promise<File[] | null>((resolve) => {

@@ -35,10 +35,10 @@ export default function ChatSessionPageClient() {
   }, [assistantError, messages]);
 
   // Handle message submission
-  const handleSubmit = useCallback(async (message: string) => {
+  const handleSubmit = useCallback(async (message: string, files?: File[]) => {
     try {
       setError(null);
-      await sendMessage(message);
+      await sendMessage(message, files);
     } catch (err) {
       console.error('Error sending message:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong');

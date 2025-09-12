@@ -1,7 +1,8 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { 
   SidebarContent,
   SidebarFooter,
@@ -63,10 +64,33 @@ function AppSidebarComponent({
   onSignOut 
 }: AppSidebarProps) {
   const router = useRouter();
+  const { data: session, update } = useSession();
   // const pathname = usePathname();
   const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { t } = useI18n();
+
+  // Use session data if available, otherwise fallback to prop
+  const currentUser = session?.user || user;
+
+  // Listen for session updates
+  useEffect(() => {
+    const handleSessionUpdate = async () => {
+      if (update) {
+        try {
+          await update();
+          console.log('Sidebar: Session refreshed after chat update');
+        } catch (error) {
+          console.error('Sidebar: Failed to refresh session:', error);
+        }
+      }
+    };
+
+    window.addEventListener('chat-session-updated', handleSessionUpdate);
+    return () => {
+      window.removeEventListener('chat-session-updated', handleSessionUpdate);
+    };
+  }, [update]);
 
   const handleDeleteSession = async (session: ChatSession) => {
     try {
@@ -173,20 +197,20 @@ function AppSidebarComponent({
         <div className="flex flex-col gap-4">
           <LanguageSwitcher />
           {/* Token Progress Bar */}
-          {user?.subscription && typeof user.subscription.remainingMessages === 'number' && typeof user.subscription.messageLimit === 'number' && (
+          {currentUser?.subscription && typeof currentUser.subscription.remainingMessages === 'number' && typeof currentUser.subscription.messageLimit === 'number' && (
             <div className="mb-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold text-muted-foreground">{t('message_tokens')}</span>
-                <span className="text-xs font-medium">{user.subscription.remainingMessages} / {user.subscription.messageLimit}</span>
+                <span className="text-xs font-medium">{currentUser.subscription.remainingMessages} / {currentUser.subscription.messageLimit}</span>
               </div>
-              <Progress value={user.subscription.messageLimit === 0 ? 0 : (user.subscription.remainingMessages / user.subscription.messageLimit) * 100} />
+              <Progress value={currentUser.subscription.messageLimit === 0 ? 0 : (currentUser.subscription.remainingMessages / currentUser.subscription.messageLimit) * 100} />
               {/* Warning/Alert */}
-              {user.subscription.remainingMessages <= 10 && user.subscription.remainingMessages > 0 && (
+              {currentUser.subscription.remainingMessages <= 10 && currentUser.subscription.remainingMessages > 0 && (
                 <div className="mt-2 text-xs text-yellow-600 font-semibold">
                   {t('warning_tokens_low')}
                 </div>
               )}
-              {user.subscription.remainingMessages === 0 && (
+              {currentUser.subscription.remainingMessages === 0 && (
                 <div className="mt-2 text-xs text-red-600 font-semibold">
                   {t('tokens_run_out')} <a href="https://dashboard.taxai.ae/dashboard/account?tab=Subscription" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">{t('upgrade_subscription')}</a> {t('to_continue_chatting')}
                 </div>
@@ -194,17 +218,17 @@ function AppSidebarComponent({
             </div>
           )}
           {/* User Info */}
-          {user && (
+          {currentUser && (
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                 <User className="h-4 w-4 text-primary" />
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium">
-                  {user.name || user.email}
+                  {currentUser.name || currentUser.email}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {user.email}
+                  {currentUser.email}
                 </span>
               </div>
             </div>

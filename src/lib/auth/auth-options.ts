@@ -117,24 +117,38 @@ export const authConfig: AuthOptions = {
           email: token.email as string,
           name: token.name as string,
         };
-        // Hydrate additional user fields from DB
-        const { User } = await import('@/lib/models/user');
-        let userDoc = await User.findById(token.id).lean();
-        if (Array.isArray(userDoc)) userDoc = userDoc[0];
-        const subscription =
-          userDoc && typeof userDoc === 'object' && userDoc !== null && 'subscription' in userDoc
-            ? (userDoc as { subscription?: Subscription }).subscription
-            : undefined;
-        if (subscription) {
-          session.user.subscription = {
-            messageLimit: subscription.messageLimit,
-            remainingMessages: subscription.remainingMessages,
-          };
-        }
-        if (userDoc && typeof userDoc === 'object' && userDoc !== null) {
-          session.user.language = (userDoc as { language?: string }).language;
-          session.user.jobTitle = (userDoc as { jobTitle?: string }).jobTitle;
-          session.user.trialUsed = (userDoc as { trialUsed?: boolean }).trialUsed;
+        
+        // Always fetch fresh user data to ensure subscription is up-to-date
+        if (token.id) {
+          try {
+            const { User } = await import('@/lib/models/user');
+            const userDoc = await User.findById(token.id)
+              .select('subscription language jobTitle trialUsed')
+              .lean();
+            
+            if (userDoc) {
+              if (userDoc.subscription) {
+                session.user.subscription = {
+                  messageLimit: userDoc.subscription.messageLimit,
+                  remainingMessages: userDoc.subscription.remainingMessages,
+                };
+                // Update cached subscription in token
+                token.subscription = userDoc.subscription;
+              }
+              session.user.language = userDoc.language;
+              session.user.jobTitle = userDoc.jobTitle;
+              session.user.trialUsed = userDoc.trialUsed;
+            }
+          } catch (error) {
+            console.error('Error fetching user data in session callback:', error);
+            // Fallback to cached data if available
+            if (token.subscription) {
+              session.user.subscription = {
+                messageLimit: token.subscription.messageLimit,
+                remainingMessages: token.subscription.remainingMessages,
+              };
+            }
+          }
         }
       }
       return session;

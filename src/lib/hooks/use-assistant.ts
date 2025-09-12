@@ -10,7 +10,7 @@ interface UseAssistantReturn {
   isLoading: boolean;
   status: 'idle' | 'loading' | 'error' | 'success';
   error: string | null;
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, files?: File[]) => Promise<void>;
   quotaDialogOpen: boolean;
   setQuotaDialogOpen: (open: boolean) => void;
 }
@@ -51,41 +51,102 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
   }, [sessionId]);
 
   // Send message function
-  const sendMessage = useCallback(async (message: string) => {
+  const sendMessage = useCallback(async (message: string, files?: File[]) => {
     try {
       setIsLoading(true);
       setStatus('loading');
       setError(null);
 
       // Create optimistic UI update
-      const userMessage: ThreadMessage = { 
-        role: 'user', 
-        content: message, 
-        timestamp: new Date() 
-      };
+      // Create messages array - if files exist, create separate bubbles
+      const messagesToAdd: ThreadMessage[] = [];
+      
+      if (files && files.length > 0) {
+        // First bubble: File attachment names
+        const attachmentNames = files.map(file => file.name).join(', ');
+        const attachmentMessage: ThreadMessage = {
+          role: 'user',
+          content: `📎 ${attachmentNames}`,
+          timestamp: new Date(),
+          attachments: files.map(file => ({
+            name: file.name,
+            type: file.type,
+            size: file.size
+          }))
+        };
+        messagesToAdd.push(attachmentMessage);
+        
+        // Second bubble: User text message (if not empty)
+        if (message.trim()) {
+          const textMessage: ThreadMessage = {
+            role: 'user',
+            content: message,
+            timestamp: new Date()
+          };
+          messagesToAdd.push(textMessage);
+        }
+      } else {
+        // Single bubble for text-only messages
+        const userMessage: ThreadMessage = { 
+          role: 'user', 
+          content: message, 
+          timestamp: new Date()
+        };
+        messagesToAdd.push(userMessage);
+      }
+      
+      // Add assistant message
       const assistantMessage: ThreadMessage = { 
         role: 'assistant', 
         content: '', 
         timestamp: new Date() 
       };
+      messagesToAdd.push(assistantMessage);
       
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      setMessages((prev) => [...prev, ...messagesToAdd]);
 
       // Send API request with timeout handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for complex queries
       
       try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, sessionId, threadId }),
-          signal: controller.signal
-        });
+        let response;
+        
+        if (files && files.length > 0) {
+          // Use FormData for file uploads
+          const formData = new FormData();
+          formData.append('message', message);
+          formData.append('sessionId', sessionId);
+          if (threadId) formData.append('threadId', threadId);
+          
+          // Append files
+          files.forEach(file => {
+            formData.append('files', file);
+          });
+          
+          response = await fetch("/api/chat", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal
+          });
+        } else {
+          // Use JSON for text-only messages
+          response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              message, 
+              sessionId, 
+              threadId
+            }),
+            signal: controller.signal
+          });
+        }
         
         clearTimeout(timeoutId);
         
         const data = await response.json();
+        console.log('API response data:', data);
         if (!response.ok) {
           if (data.message === 'Message quota exceeded') {
             setQuotaDialogOpen(true);
@@ -93,16 +154,33 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
           throw new Error(data.message || "Failed to send message");
         }
         
-        // Multi-bubble support
+        // Multi-bubble support - handle multiple assistant messages properly
         if (data.messages && Array.isArray(data.messages)) {
           setMessages((prev) => {
-            // Hapus bubble assistant kosong terakhir (optimistic UI)
+            // Remove the empty assistant message from optimistic UI
             const newMessages = [...prev];
             while (newMessages.length && newMessages[newMessages.length - 1].role === 'assistant' && !newMessages[newMessages.length - 1].content) {
               newMessages.pop();
             }
-            // Tambahkan semua pesan assistant baru
-            data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }) => {
+            
+            // Update the last user message with attachments if available
+            if (data.userMessage && newMessages.length > 0) {
+              // Find the last user message that has attachments (the file attachment bubble)
+              const lastUserWithAttachmentsIndex = newMessages.findLastIndex(msg => 
+                msg.role === 'user' && msg.attachments && msg.attachments.length > 0
+              );
+              
+              if (lastUserWithAttachmentsIndex !== -1) {
+                newMessages[lastUserWithAttachmentsIndex] = {
+                  ...newMessages[lastUserWithAttachmentsIndex],
+                  attachments: data.userMessage.attachments || []
+                };
+                console.log('Updated user message with attachments:', newMessages[lastUserWithAttachmentsIndex]);
+              }
+            }
+            
+            // Add all new messages, ensuring proper separation
+            data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }, index: number) => {
               newMessages.push({
                 role: msg.role,
                 content: msg.content,
@@ -114,9 +192,26 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
         } else if (data.message) {
           setMessages((prev) => {
             const newMessages = [...prev];
+            
+            // Update the last user message with attachments if available
+            if (data.userMessage && newMessages.length > 0) {
+              // Find the last user message that has attachments (the file attachment bubble)
+              const lastUserWithAttachmentsIndex = newMessages.findLastIndex(msg => 
+                msg.role === 'user' && msg.attachments && msg.attachments.length > 0
+              );
+              
+              if (lastUserWithAttachmentsIndex !== -1) {
+                newMessages[lastUserWithAttachmentsIndex] = {
+                  ...newMessages[lastUserWithAttachmentsIndex],
+                  attachments: data.userMessage.attachments || []
+                };
+                console.log('Updated user message with attachments (else if):', newMessages[lastUserWithAttachmentsIndex]);
+              }
+            }
+            
+            // Find the last empty assistant message to replace
             const lastAssistantIdx = newMessages.findLastIndex(
-              (m, idx, arr) => m.role === 'assistant' && 
-                            (idx === arr.length - 1 || arr[idx + 1]?.role !== 'assistant')
+              (m, idx, arr) => m.role === 'assistant' && !m.content
             );
             if (lastAssistantIdx !== -1) {
               newMessages[lastAssistantIdx] = {
@@ -124,12 +219,26 @@ export function useAssistant(sessionId: string): UseAssistantReturn {
                 content: data.message.content,
                 timestamp: new Date()
               };
+            } else {
+              // If no empty assistant message found, add a new one
+              newMessages.push({
+                role: 'assistant',
+                content: data.message.content,
+                timestamp: new Date()
+              });
             }
             return newMessages;
           });
         }
         // Refresh user session for sidebar progress bar
-        if (update) await update();
+        if (update) {
+          try {
+            await update();
+            console.log('Session updated successfully');
+          } catch (error) {
+            console.error('Failed to update session:', error);
+          }
+        }
         // Trigger sidebar refresh
         window.dispatchEvent(new Event('chat-session-updated'));
         setStatus('success');

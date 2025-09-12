@@ -5,6 +5,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/ui/copy-button"
+import { TextFormatter } from "@/components/ui/text-formatter"
 
 interface MarkdownRendererProps {
   children: string
@@ -17,6 +18,21 @@ interface CodeProps {
 }
 
 export function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
+  // Check if content contains markdown syntax
+  const hasMarkdown = typeof children === 'string' && (
+    children.includes('**') || 
+    children.includes('*') || 
+    children.includes('#') || 
+    children.includes('`') ||
+    children.includes('[') ||
+    children.includes('](')
+  );
+
+  // If no markdown syntax, use TextFormatter for better line break handling
+  if (!hasMarkdown && typeof children === 'string') {
+    return <TextFormatter content={children} className={className} />;
+  }
+
   return (
     <div className={cn("prose prose-gray dark:prose-invert max-w-none", className)}>
       <Markdown
@@ -58,12 +74,12 @@ export function MarkdownRenderer({ children, className }: MarkdownRendererProps)
 
           // Lists
           ul: ({ children }) => (
-            <ul className="my-6 ml-6 list-disc [&>li]:mt-2">{children}</ul>
+            <ul className="my-6 ml-6 list-disc [&>li]:mt-3 space-y-2">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="my-6 ml-6 list-decimal [&>li]:mt-2">{children}</ol>
+            <ol className="my-6 ml-6 list-decimal [&>li]:mt-3 space-y-2">{children}</ol>
           ),
-          li: ({ children }) => <li>{children}</li>,
+          li: ({ children }) => <li className="leading-7">{children}</li>,
 
           // Code blocks
           pre: ({ children }) => {
@@ -129,7 +145,7 @@ export function MarkdownRenderer({ children, className }: MarkdownRendererProps)
           ),
 
           // Paragraphs
-          p: ({ children }) => <p className="leading-7 [&:not(:first-child)]:mt-6">{children}</p>,
+          p: ({ children }) => <p className="leading-7 [&:not(:first-child)]:mt-4 mb-4">{children}</p>,
 
           // Horizontal rule
           hr: () => <hr className="my-8 border-t" />,

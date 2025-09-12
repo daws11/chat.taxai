@@ -9,43 +9,43 @@ import { useAssistant } from '@/lib/hooks/use-assistant';
 import { Loader2 } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 
-// Sample suggestions for the empty state
+// Sample suggestions for the empty state - Corporate Tax focused
 const suggestions = [
   {
     id: '1',
-    category: 'category_general',
-    icon: '📝',
-    text: 'suggestion_basic_tax'
+    category: 'category_corporate_tax_rate',
+    icon: '📊',
+    text: 'suggestion_corporate_tax_rate'
   },
   {
     id: '2',
-    category: 'category_calculation',
-    icon: '🧮',
-    text: 'suggestion_income_tax'
+    category: 'category_tax_obligation',
+    icon: '👥',
+    text: 'suggestion_who_pays_corporate_tax'
   },
   {
     id: '3',
-    category: 'category_deductions',
-    icon: '💰',
-    text: 'suggestion_deductions'
+    category: 'category_free_zone',
+    icon: '🏭',
+    text: 'suggestion_free_zone_companies'
   },
   {
     id: '4',
-    category: 'category_business',
-    icon: '🏢',
-    text: 'suggestion_business_tax'
+    category: 'category_threshold',
+    icon: '💰',
+    text: 'suggestion_taxable_income_threshold'
   },
   {
     id: '5',
-    category: 'category_investment',
-    icon: '📈',
-    text: 'suggestion_investment_tax'
+    category: 'category_registration',
+    icon: '📋',
+    text: 'suggestion_registration_filing'
   },
   {
     id: '6',
-    category: 'category_property',
-    icon: '🏠',
-    text: 'suggestion_property_benefits'
+    category: 'category_penalties',
+    icon: '⚠️',
+    text: 'suggestion_penalties_compliance'
   }
 ];
 
@@ -73,7 +73,7 @@ export default function ChatPage() {
   }, [assistantError]);
 
   // Handle message submission
-  const handleSubmit = useCallback(async (message: string) => {
+  const handleSubmit = useCallback(async (message: string, files?: File[]) => {
     try {
       setError(null);
       
@@ -81,14 +81,34 @@ export default function ChatPage() {
       if (!sessionId) {
         setIsSessionLoading(true); // NEW
         // First create a new session WITH the first message
-        const sessionResponse = await fetch('/api/chat/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
-            message // kirim pesan pertama bersamaan
-          })
-        });
+        let sessionResponse;
+        
+        if (files && files.length > 0) {
+          // Use FormData for file uploads
+          const formData = new FormData();
+          formData.append('title', message.slice(0, 50) + (message.length > 50 ? '...' : ''));
+          formData.append('message', message);
+          
+          // Append files
+          files.forEach(file => {
+            formData.append('files', file);
+          });
+          
+          sessionResponse = await fetch('/api/chat/sessions', {
+            method: 'POST',
+            body: formData
+          });
+        } else {
+          // Use JSON for text-only messages
+          sessionResponse = await fetch('/api/chat/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
+              message // kirim pesan pertama bersamaan
+            })
+          });
+        }
         
         if (sessionResponse.status === 401) {
           router.push('/login');
@@ -118,7 +138,7 @@ export default function ChatPage() {
         router.refresh();
         setIsSessionLoading(false); // NEW
       } else {
-        await sendMessage(message);
+        await sendMessage(message, files);
       }
     } catch (err) {
       setIsSessionLoading(false); // NEW
