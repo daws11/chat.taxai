@@ -4,6 +4,7 @@ import { connectToDatabase } from '@/lib/db';
 import { ChatSession } from '@/lib/models/chat';
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { deleteSessionAttachments } from '@/lib/rag/vector-store';
 
 // Handler GET
 export async function GET(
@@ -61,6 +62,12 @@ export async function DELETE(
     });
     if (!chatSession) {
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 });
+    }
+    // Best-effort cleanup of the session's attachment vectors
+    try {
+      await deleteSessionAttachments(id);
+    } catch (vectorError) {
+      console.error('Failed to delete session vectors:', vectorError);
     }
     return NextResponse.json(
       { message: 'Chat session deleted successfully' },

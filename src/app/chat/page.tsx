@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
-import type { ThreadMessage } from '@/lib/services/assistant-service';
+import type { ThreadMessage } from '@/lib/types/thread';
 import { useAssistant } from '@/lib/hooks/use-assistant';
 import { Loader2 } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';

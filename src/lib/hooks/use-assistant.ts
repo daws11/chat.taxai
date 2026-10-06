@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { ThreadMessage } from '@/lib/services/assistant-service';
+import type { ThreadMessage } from '@/lib/types/thread';
 import { useSession } from 'next-auth/react';
 import { useState as useDialogState } from 'react';
 
