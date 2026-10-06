@@ -26,13 +26,23 @@ export async function generateReply(
     })),
   ];
 
-  const completion = await getLLM().chat.completions.create({
+  const body: Record<string, unknown> = {
     model: getLLMModel(),
     messages,
     temperature: 0.84,
     top_p: 0.59,
-    max_tokens: 2048,
-  });
+    max_tokens: 4096,
+    // glm reasoning models spend max_tokens on reasoning_content, which can
+    // leave `content` empty; disable thinking for direct chat answers.
+    // Ignored by providers that don't support the parameter.
+  };
+  if (process.env.LLM_THINKING !== 'enabled') {
+    body.thinking = { type: 'disabled' };
+  }
 
-  return completion.choices[0]?.message?.content?.trim() || '';
+  const completion = (await getLLM().chat.completions.create(
+    body as unknown as Parameters<ReturnType<typeof getLLM>['chat']['completions']['create']>[0]
+  )) as { choices?: Array<{ message?: { content?: string | null } }> };
+
+  return completion.choices?.[0]?.message?.content?.trim() || '';
 }

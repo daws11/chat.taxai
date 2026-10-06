@@ -42,9 +42,47 @@ const { QdrantClient } = await import('@qdrant/js-client-rest');
 const { FlagEmbedding, EmbeddingModel } = await import('fastembed');
 
 const COLLECTION = 'atto_kb';
-const DIM = 384; // BGE-small-en-v1.5
 const MAX_CHARS = 1500;
 const OVERLAP = 200;
+
+// Provider: Google embeddings when EMBEDDING_API_KEY is set, else local fastembed.
+const DIM = process.env.EMBEDDING_API_KEY
+  ? parseInt(process.env.EMBEDDING_DIM || '768', 10)
+  : 384;
+
+async function makeEmbedder() {
+  if (process.env.EMBEDDING_API_KEY) {
+    const { default: OpenAI } = await import('openai');
+    const client = new OpenAI({
+      baseURL: process.env.EMBEDDING_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      apiKey: process.env.EMBEDDING_API_KEY,
+      defaultHeaders: { 'x-goog-api-key': process.env.EMBEDDING_API_KEY },
+    });
+    const model = process.env.EMBEDDING_MODEL || 'gemini-embedding-001';
+    return async (texts) => {
+      const out = [];
+      for (let i = 0; i < texts.length; i += 32) {
+        const response = await client.embeddings.create({
+          model,
+          input: texts.slice(i, i + 32),
+          dimensions: DIM,
+        });
+        for (const item of response.data) out.push(item.embedding);
+      }
+      return out;
+    };
+  }
+  const embedder = await FlagEmbedding.init({
+    model: EmbeddingModel.BGESmallENV15,
+    cacheDir: process.env.EMBEDDING_CACHE_DIR || path.join(appRoot, '.fastembed-cache'),
+    showDownloadProgress: false,
+  });
+  return async (texts) => {
+    const out = [];
+    for await (const batch of embedder.embed(texts, 32)) out.push(...batch);
+    return out;
+  };
+}
 
 const client = new QdrantClient({ url: QDRANT_URL });
 
@@ -129,11 +167,7 @@ async function main() {
     process.exit(1);
   }
 
-  const embedder = await FlagEmbedding.init({
-    model: EmbeddingModel.BGESmallENV15,
-    cacheDir: process.env.EMBEDDING_CACHE_DIR || path.join(appRoot, '.fastembed-cache'),
-    showDownloadProgress: false,
-  });
+  const embed = await makeEmbedder();
 
   let total = 0;
   for (const filePath of files) {
@@ -156,16 +190,12 @@ async function main() {
       continue;
     }
 
-    const points = [];
-    for await (const batch of embedder.embed(chunks, 32)) {
-      for (const vector of batch) {
-        points.push({
-          id: crypto.randomUUID(),
-          vector,
-          payload: { source, chunkIndex: points.length, text: chunks[points.length] },
-        });
-      }
-    }
+    const vectors = await embed(chunks);
+    const points = vectors.map((vector, idx) => ({
+      id: crypto.randomUUID(),
+      vector,
+      payload: { source, chunkIndex: idx, text: chunks[idx] },
+    }));
 
     await client.upsert(COLLECTION, { wait: true, points });
     total += points.length;
