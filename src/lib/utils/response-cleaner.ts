@@ -19,20 +19,11 @@ export function cleanReferences(content: string): string {
     .replace(/\[source\]/gi, '')
     .replace(/\[Source\]/g, '')
     .replace(/\[SOURCE\]/g, '')
-    // Remove "according to" phrases
-    .replace(/according to [^.]*\./gi, '')
-    .replace(/as stated in [^.]*\./gi, '')
-    .replace(/based on [^.]*\./gi, '')
-    .replace(/as mentioned in [^.]*\./gi, '')
-    .replace(/as per [^.]*\./gi, '')
-    .replace(/per the document[^.]*\./gi, '')
-    .replace(/per the file[^.]*\./gi, '')
-    // Remove document references
-    .replace(/in the document[^.]*\./gi, '')
-    .replace(/from the file[^.]*\./gi, '')
-    .replace(/in the uploaded [^.]*\./gi, '')
-    .replace(/in the attached [^.]*\./gi, '')
-    .replace(/from the attached [^.]*\./gi, '')
+    // Remove "according to / based on ..." reference phrases — phrase-level
+    // only, so the rest of the sentence (often the actual answer) survives
+    .replace(/(according to|as stated in|as mentioned in|as per|based on|per)\s+(the\s+|my\s+|your\s+|this\s+|our\s+)?(uploaded\s+|attached\s+|provided\s+|shared\s+|relevant\s+)?(document|docs|file|files|invoice|receipt|attachment|spreadsheet|report|statement)s?\b[,;:]?\s*/gi, '')
+    // Remove "in/from the uploaded/attached ..." document references
+    .replace(/(in|from)\s+the\s+(uploaded|attached|provided)\s+(document|file|files|invoice|attachment|report)s?\b[,;:]?\s*/gi, '')
     // Remove specific reference patterns
     .replace(/\(see [^)]*\)/gi, '')
     .replace(/\(ref: [^)]*\)/gi, '')
@@ -51,6 +42,8 @@ export function cleanReferences(content: string): string {
     .replace(/\s+:/g, ':')
     .replace(/\s+\)/g, ')')
     .replace(/\(\s+/g, '(')
+    // If stripping a leading reference phrase lowercased the start, restore it
+    .replace(/^([a-z])/, (match) => match.toUpperCase())
     .trim();
 }
 
@@ -109,19 +102,21 @@ export function shouldFilterContent(content: string): boolean {
  */
 export function cleanAIResponse(content: string): string | null {
   if (!content) return null;
-  
-  // First check if content should be filtered out
-  if (shouldFilterContent(content)) {
+
+  // Clean reference phrases first ("according to the document, ..."), so a
+  // substantive answer that merely cites its source loses only the phrase —
+  // not the whole message.
+  const cleaned = cleanReferences(content);
+
+  // Then drop messages that are purely "let me check..." filler
+  if (shouldFilterContent(cleaned)) {
     return null;
   }
-  
-  // Clean references
-  const cleaned = cleanReferences(content);
-  
+
   // Return null if content becomes empty after cleaning
   if (!cleaned.trim()) {
     return null;
   }
-  
+
   return cleaned;
 }
