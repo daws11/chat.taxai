@@ -27,12 +27,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create new user
+    // Create new user with a default trial subscription (required by the
+    // chat quota checks — without it the user cannot send any message)
+    const now = new Date();
     const user = new User({
       name,
       email,
       password,
       jobTitle,
+      subscription: {
+        type: 'trial',
+        status: 'active',
+        messageLimit: 30,
+        remainingMessages: 30,
+        callSeconds: 0,
+        startDate: now,
+        endDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        payment: {
+          amount: 0,
+          method: 'none',
+          lastPaymentDate: now,
+          nextPaymentDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        },
+      },
     });
 
     await user.save();
