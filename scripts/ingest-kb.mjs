@@ -45,13 +45,28 @@ const COLLECTION = 'atto_kb';
 const MAX_CHARS = 1500;
 const OVERLAP = 200;
 
-// Provider: Google embeddings when EMBEDDING_API_KEY is set, else local fastembed.
-const DIM = process.env.EMBEDDING_API_KEY
+// Provider/model resolution mirrors src/lib/rag/embedder.ts, otherwise an
+// ingest with a different model silently writes vectors of the wrong size.
+const LOCAL_MODELS = {
+  mle5large: { model: EmbeddingModel.MLE5Large, dim: 1024 },
+  'bge-base': { model: EmbeddingModel.BGEBaseENV15, dim: 768 },
+  'bge-small': { model: EmbeddingModel.BGESmallENV15, dim: 384 },
+};
+const PROVIDER = (() => {
+  const configured = (process.env.EMBEDDING_PROVIDER || '').toLowerCase();
+  if (configured === 'google' || configured === 'local') return configured;
+  return process.env.EMBEDDING_API_KEY ? 'google' : 'local';
+})();
+const LOCAL_MODEL_NAME = (() => {
+  const configured = (process.env.EMBEDDING_LOCAL_MODEL || '').toLowerCase();
+  return configured in LOCAL_MODELS ? configured : 'bge-small';
+})();
+const DIM = PROVIDER === 'google'
   ? parseInt(process.env.EMBEDDING_DIM || '768', 10)
-  : 384;
+  : LOCAL_MODELS[LOCAL_MODEL_NAME].dim;
 
 async function makeEmbedder() {
-  if (process.env.EMBEDDING_API_KEY) {
+  if (PROVIDER === 'google') {
     const { default: OpenAI } = await import('openai');
     const client = new OpenAI({
       baseURL: process.env.EMBEDDING_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
@@ -73,7 +88,7 @@ async function makeEmbedder() {
     };
   }
   const embedder = await FlagEmbedding.init({
-    model: EmbeddingModel.BGESmallENV15,
+    model: LOCAL_MODELS[LOCAL_MODEL_NAME].model,
     cacheDir: process.env.EMBEDDING_CACHE_DIR || path.join(appRoot, '.fastembed-cache'),
     showDownloadProgress: false,
   });

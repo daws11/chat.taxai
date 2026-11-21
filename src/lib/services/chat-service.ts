@@ -29,15 +29,23 @@ export async function generateReply(
   const body: Record<string, unknown> = {
     model: getLLMModel(),
     messages,
-    temperature: 0.84,
     max_tokens: 4096,
     // glm reasoning models spend max_tokens on reasoning_content, which can
     // leave `content` empty; disable thinking for direct chat answers.
     // Ignored by providers that don't support the parameter.
   };
-  // Anthropic's compat layer rejects temperature + top_p together; Z.AI keeps both.
-  if (!isAnthropicEndpoint()) {
-    body.top_p = 0.59;
+
+  // Sampling parameters are provider/model specific:
+  //   both        — Z.AI / OpenAI accept temperature + top_p
+  //   temperature — Claude 4.x rejects the pair together, accepts one
+  //   none        — Claude 5.x rejects both as deprecated
+  // Default keeps the historical mix per endpoint; override with LLM_SAMPLING.
+  const sampling = (
+    process.env.LLM_SAMPLING || (isAnthropicEndpoint() ? 'temperature' : 'both')
+  ).toLowerCase();
+  if (sampling !== 'none') {
+    body.temperature = 0.84;
+    if (sampling === 'both') body.top_p = 0.59;
   }
   if (process.env.LLM_THINKING !== 'enabled') {
     body.thinking = { type: 'disabled' };
