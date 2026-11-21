@@ -1,6 +1,6 @@
 import type { RetrievedChunk } from '@/lib/rag/vector-store';
 import { buildContextBlock, ATTO_SYSTEM_PROMPT } from '@/lib/llm/prompts';
-import { getLLM, getLLMModel } from '@/lib/llm/client';
+import { getLLM, getLLMModel, isAnthropicEndpoint } from '@/lib/llm/client';
 import type { ThreadMessage } from '@/lib/types/thread';
 
 /**
@@ -30,12 +30,15 @@ export async function generateReply(
     model: getLLMModel(),
     messages,
     temperature: 0.84,
-    top_p: 0.59,
     max_tokens: 4096,
     // glm reasoning models spend max_tokens on reasoning_content, which can
     // leave `content` empty; disable thinking for direct chat answers.
     // Ignored by providers that don't support the parameter.
   };
+  // Anthropic's compat layer rejects temperature + top_p together; Z.AI keeps both.
+  if (!isAnthropicEndpoint()) {
+    body.top_p = 0.59;
+  }
   if (process.env.LLM_THINKING !== 'enabled') {
     body.thinking = { type: 'disabled' };
   }
